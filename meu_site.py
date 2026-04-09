@@ -18,7 +18,6 @@ def verificar_senha():
             st.subheader("Sistema de Inspeção IFBA")
             senha = st.text_input("Digite a senha de acesso:", type="password")
             if st.button("Entrar"):
-                # Senha definida pelo Thiago
                 if senha == "IFBA2026":
                     st.session_state["autenticado"] = True
                     st.rerun()
@@ -28,11 +27,9 @@ def verificar_senha():
     return True
 
 if verificar_senha():
-    # Configuração da Página Principal
     st.set_page_config(page_title="Inspeção Predial IFBA", layout="wide", page_icon="🏗️")
 
-    # --- CABEÇALHO LIMPO E CORRIGIDO (SEM ÍCONES QUEBRADOS) ---
-    # Imagem de construção genérica e gratuita
+    # --- CABEÇALHO LIMPO ---
     url_construcao = "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?q=80&w=300&auto=format&fit=crop"
     
     st.markdown(
@@ -50,7 +47,6 @@ if verificar_senha():
         unsafe_allow_html=True
     )
 
-    # Conexão e Dados (GSheets)
     conn = st.connection("gsheets", type=GSheetsConnection)
     try:
         df_base = conn.read(ttl="0")
@@ -58,11 +54,20 @@ if verificar_senha():
     except:
         df_base = pd.DataFrame()
 
-    # Sidebar
+    # --- SIDEBAR COM TODOS OS CAMPI DO IFBA ---
     with st.sidebar:
         st.header("🏢 Unidades IFBA")
-        campi_ifba = sorted(["Salvador", "Feira de Santana", "Simões Filho", "Santo Amaro", "Barreiras", "Juazeiro", "Jequié", "Ilhéus"])
-        campus_sel = st.selectbox("Selecione o Campus:", campi_ifba)
+        
+        # Lista completa de Campi e Núcleos Avançados
+        lista_campi = sorted([
+            "Salvador", "Feira de Santana", "Barreiras", "Brumado", "Camaçari", 
+            "Euclides da Cunha", "Eunápolis", "Ilhéus", "Irecê", "Jacobina", 
+            "Jequié", "Juazeiro", "Paulo Afonso", "Porto Seguro", "Santo Amaro", 
+            "Santo Antônio de Jesus", "Seabra", "Simões Filho", "Valença", 
+            "Vitória da Conquista", "Ubaitaba", "Jaguarari", "Salinas da Margarida"
+        ])
+        
+        campus_sel = st.selectbox("Selecione o Campus para trabalhar:", lista_campi)
         
         st.markdown("---")
         st.subheader("🛠️ Modo de Edição")
@@ -81,11 +86,11 @@ if verificar_senha():
                 index_to_edit = int(selecao.split(" ")[1])
                 dados_edit = df_base.iloc[index_to_edit]
 
-        if st.button("🚪 Sair"):
+        if st.button("🚪 Sair do Sistema"):
             st.session_state["autenticado"] = False
             st.rerun()
 
-    # Formulário
+    # Formulário de Vistoria
     with st.form("form_vistoria", clear_on_submit=not edit_mode):
         titulo_form = f"✏️ Editando: {dados_edit['Edificacao']}" if edit_mode else f"📝 Nova Vistoria: {campus_sel}"
         st.subheader(titulo_form)
@@ -93,7 +98,7 @@ if verificar_senha():
         c1, c2 = st.columns(2)
         with c1:
             edificacao = st.text_input("Edificação/Bloco:", value=dados_edit['Edificacao'] if edit_mode else "", key="edif")
-            disciplina_lista = ["Alvenaria", "Estrutura", "Elétrica", "Hidráulica", "Pintura", "Cobertura", "Drenagem"]
+            disciplina_lista = ["Alvenaria", "Estrutura", "Elétrica", "Hidráulica", "Pintura", "Cobertura", "Drenagem", "Incêndio"]
             idx_disc = disciplina_lista.index(dados_edit['Disciplina']) if edit_mode and dados_edit['Disciplina'] in disciplina_lista else 0
             disciplina = st.selectbox("Disciplina:", disciplina_lista, index=idx_disc)
             
@@ -105,7 +110,7 @@ if verificar_senha():
             st.write("**📸 Evidência Fotográfica**")
             foto_upload = st.file_uploader("Arraste a foto", type=["jpg", "png", "jpeg"])
             if foto_upload:
-                st.image(Image.open(foto_upload), caption="Visualização", use_container_width=True)
+                st.image(Image.open(foto_upload), caption="Visualização Técnica", use_container_width=True)
             elif edit_mode and dados_edit['Foto'] != "Sem foto":
                 st.info(f"O registro possui foto anexada ({dados_edit['Foto']}).")
 
@@ -136,10 +141,10 @@ if verificar_senha():
             else:
                 df_base = pd.concat([df_base, pd.DataFrame([nova_linha])], ignore_index=True)
             conn.update(data=df_base)
-            st.success("Dados salvos com sucesso!")
+            st.success("Inspeção registrada com sucesso!")
             st.rerun()
 
-    # Dashboard e Tabela
+    # Dashboards e Histórico
     if not df_base.empty:
         df_filtrado = df_base[df_base['Campus'] == campus_sel]
         if not df_filtrado.empty:
@@ -149,7 +154,6 @@ if verificar_senha():
             edif_para_grafico = st.selectbox("Filtrar gráfico por edificação:", ["Todas"] + sorted(df_filtrado['Edificacao'].unique().tolist()))
             df_grafico = df_filtrado if edif_para_grafico == "Todas" else df_filtrado[df_filtrado['Edificacao'] == edif_para_grafico]
             
-            # Pizza por Status
             fig = px.pie(
                 df_grafico, 
                 names='Status', 
@@ -162,12 +166,8 @@ if verificar_senha():
             st.markdown("---")
             st.subheader(f"📋 Histórico de Inspeções - {campus_sel}")
             st.dataframe(df_filtrado.drop(columns=["Campus"]), use_container_width=True)
-            
-            # Botão do PDF simplificado
-            if st.button("📄 Gerar PDF do Relatório"):
-                st.info("Lógica do PDF mantida (simplificada para o commit).")
 
-    # --- RODAPÉ PERSONALIZADO E FIXO ---
+    # --- RODAPÉ ---
     st.markdown("---")
     st.markdown(
         """
