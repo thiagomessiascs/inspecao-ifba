@@ -18,7 +18,7 @@ def verificar_senha():
             st.subheader("Sistema de Inspeção IFBA")
             senha = st.text_input("Digite a senha de acesso:", type="password")
             if st.button("Entrar"):
-                # Senha definida pelo Thiago
+                # Senha definida pelo Thiago Messias Carvalho Soares
                 if senha == "IFBA2026":
                     st.session_state["autenticado"] = True
                     st.rerun()
@@ -31,16 +31,16 @@ if verificar_senha():
     # Configuração da Página Principal
     st.set_page_config(page_title="Inspeção Predial IFBA", layout="wide", page_icon="🏗️")
 
-    # --- CABEÇALHO COM LOGO E IMAGEM DE CONSTRUÇÃO ---
+    # --- CABEÇALHO REESTRUTURADO (SEM CÍRCULO NA LOGO) ---
     url_logo_oficial = "https://portal.ifba.edu.br/proen/imagens/marcas-if/marcas-ifba-v/ifba-vertical.png"
-    # Imagem de construção genérica e gratuita (pode ser trocada por outra URL se preferir)
+    # Imagem de construção genérica e gratuita
     url_construcao = "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?q=80&w=300&auto=format&fit=crop"
     
     st.markdown(
         f"""
         <div style="display: flex; align-items: center; background-color: #fcfcfc; padding: 20px; border-radius: 20px; border-left: 12px solid #2e7d32; border-bottom: 2px solid #e0e0e0; margin-bottom: 25px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);">
             <div style="display: flex; flex-direction: column; align-items: center; margin-right: 20px;">
-                <img src="{url_logo_oficial}" style="width: 70px; height: 70px; border-radius: 50%; object-fit: contain; background: white; padding: 5px; border: 3px solid #2e7d32; margin-bottom: 10px;">
+                <img src="{url_logo_oficial}" style="width: 70px; height: 70px; object-fit: contain; background: white; padding: 5px; margin-bottom: 10px;">
                 <img src="{url_construcao}" style="width: 150px; height: 100px; border-radius: 10px; object-fit: cover;">
             </div>
             <div style="margin-left: 10px;">
@@ -191,4 +191,3 @@ if verificar_senha():
         """,
         unsafe_allow_html=True
     )
-     
