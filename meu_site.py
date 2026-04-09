@@ -6,6 +6,7 @@ from fpdf import FPDF
 from datetime import datetime
 from PIL import Image
 import io
+import os # Biblioteca necessária para lidar com arquivos físicos
 
 # 1. Sistema de Autenticação (Senha: IFBA2026)
 def verificar_senha():
@@ -58,13 +59,7 @@ if verificar_senha():
     # --- SIDEBAR ---
     with st.sidebar:
         st.header("🏢 Unidades IFBA")
-        lista_campi = sorted([
-            "Salvador", "Feira de Santana", "Barreiras", "Brumado", "Camaçari", 
-            "Euclides da Cunha", "Eunápolis", "Ilhéus", "Irecê", "Jacobina", 
-            "Jequié", "Juazeiro", "Paulo Afonso", "Porto Seguro", "Santo Amaro", 
-            "Santo Antônio de Jesus", "Seabra", "Simões Filho", "Valença", 
-            "Vitória da Conquista", "Ubaitaba", "Jaguarari", "Salinas da Margarida"
-        ])
+        lista_campi = sorted(["Salvador", "Jacobina", "Feira de Santana", "Barreiras", "Juazeiro", "Ilhéus"])
         campus_sel = st.selectbox("Selecione o Campus:", lista_campi)
         
         st.markdown("---")
@@ -93,7 +88,7 @@ if verificar_senha():
         c1, c2 = st.columns(2)
         with c1:
             edificacao = st.text_input("Edificação/Bloco:", value=dados_edit['Edificacao'] if edit_mode else "", key="edif")
-            disciplina_lista = ["Alvenaria", "Estrutura", "Elétrica", "Hidráulica", "Pintura", "Cobertura", "Drenagem", "Incêndio"]
+            disciplina_lista = ["Alvenaria", "Estrutura", "Elétrica", "Hidráulica", "Pintura", "Cobertura"]
             idx_disc = disciplina_lista.index(dados_edit['Disciplina']) if edit_mode and dados_edit['Disciplina'] in disciplina_lista else 0
             disciplina = st.selectbox("Disciplina:", disciplina_lista, index=idx_disc)
             ambiente = st.text_input("Ambiente/Local:", value=dados_edit['Ambiente'] if edit_mode else "")
@@ -104,7 +99,7 @@ if verificar_senha():
             st.write("**📸 Evidência Fotográfica**")
             foto_upload = st.file_uploader("Arraste a foto", type=["jpg", "png", "jpeg"])
             if foto_upload:
-                st.image(Image.open(foto_upload), caption="Visualização", use_container_width=True)
+                st.image(Image.open(foto_upload), caption="Visualização Técnica", use_container_width=True)
             
             st.write("**Avaliação GUT**")
             g = st.slider("Gravidade", 1, 5, 3)
@@ -123,7 +118,8 @@ if verificar_senha():
                 "Ambiente": ambiente,
                 "Descricao": descricao,
                 "Solucoes": solucoes,
-                "Foto": "Anexada" if foto_upload else (dados_edit['Foto'] if edit_mode else "Sem foto"),
+                # Salva o nome do arquivo se ele existir fisicamente na pasta
+                "Foto": foto_upload.name if foto_upload else (dados_edit['Foto'] if edit_mode else "Sem foto"),
                 "Score_GUT": score,
                 "Status": status
             }
@@ -132,10 +128,10 @@ if verificar_senha():
             else:
                 df_base = pd.concat([df_base, pd.DataFrame([nova_linha])], ignore_index=True)
             conn.update(data=df_base)
-            st.success("Dados salvos!")
+            st.success("Dados salvos fisicamente!")
             st.rerun()
 
-    # --- HISTÓRICO E PDF ---
+    # --- HISTÓRICO E PDF COM FOTOS FÍSICAS AO LADO ---
     if not df_base.empty:
         df_filtrado = df_base[df_base['Campus'] == campus_sel]
         if not df_filtrado.empty:
@@ -143,8 +139,8 @@ if verificar_senha():
             st.subheader(f"📋 Histórico e Relatórios - {campus_sel}")
             st.dataframe(df_filtrado.drop(columns=["Campus"]), use_container_width=True)
 
-            # FUNÇÃO PARA GERAR PDF
-            def gerar_pdf(dados, campus):
+            # FUNÇÃO PARA GERAR PDF (MUDANÇA AQUI)
+            def gerar_pdf_com_fotos(dados, campus):
                 pdf = FPDF()
                 pdf.add_page()
                 pdf.set_font("Arial", 'B', 16)
@@ -152,49 +148,56 @@ if verificar_senha():
                 pdf.ln(10)
                 
                 for i, row in dados.iterrows():
-                    pdf.set_fill_color(240, 240, 240)
                     pdf.set_font("Arial", 'B', 12)
                     pdf.cell(190, 8, f"Item {i+1}: {row['Edificacao']} - {row['Disciplina']}", ln=True, fill=True)
-                    
+                    pdf.ln(2)
+
+                    # Coluna do Texto (Esquerda) e Coluna da Imagem (Direita)
+                    # O texto ocupará 120mm, a imagem 60mm (espaço de 10mm entre elas)
                     pdf.set_font("Arial", 'B', 10)
-                    pdf.cell(40, 7, "Local/Ambiente:", 0)
-                    pdf.set_font("Arial", '', 10)
-                    pdf.cell(0, 7, f"{row['Ambiente']}", ln=True)
+                    # Escreve os textos técnicos (pode quebrar linha em multi_cell)
+                    pdf.multi_cell(120, 7, f"Local/Ambiente: {row['Ambiente']}\nDescrição: {row['Descricao']}\nSoluções Sugeridas: {row['Solucoes']}")
                     
-                    pdf.set_font("Arial", 'B', 10)
-                    pdf.multi_cell(0, 7, "Descrição da Patologia:")
-                    pdf.set_font("Arial", '', 10)
-                    pdf.multi_cell(0, 5, f"{row['Descricao']}")
-                    
-                    pdf.set_font("Arial", 'B', 10)
-                    pdf.multi_cell(0, 7, "Soluções Sugeridas:")
-                    pdf.set_font("Arial", '', 10)
-                    pdf.multi_cell(0, 5, f"{row['Solucoes']}")
-                    
-                    pdf.set_font("Arial", 'B', 10)
+                    # COR DO STATUS
                     cor_status = (211, 47, 47) if row['Status'] == "CRÍTICA" else (251, 192, 45) if row['Status'] == "MÉDIA" else (56, 142, 60)
                     pdf.set_text_color(*cor_status)
-                    pdf.cell(0, 7, f"PRIORIDADE GUT: {row['Status']} (Score: {row['Score_GUT']})", ln=True)
+                    pdf.cell(120, 7, f"PRIORIDADE GUT: {row['Status']} (Score: {row['Score_GUT']})", ln=True)
                     pdf.set_text_color(0, 0, 0)
+                    
+                    # --- LÓGICA DE INSERÇÃO DA FOTO FÍSICA ---
+                    foto_nome = row['Foto']
+                    # Caminho para verificar se o arquivo existe fisicamente na pasta do projeto
+                    caminho_foto = os.path.join(os.getcwd(), foto_nome)
+                    
+                    if foto_nome != "Sem foto" and os.path.exists(caminho_foto):
+                        # Posição Y atual do cursor de texto
+                        y_atual = pdf.get_y()
+                        # Move o cursor para a direita (coluna da foto) mantendo a mesma altura
+                        pdf.set_xy(140, y_atual - 25) # Ajuste Y para alinhar com o topo do texto
+                        # Insere a imagem física (largura 50mm, altura proporcional)
+                        pdf.image(caminho_foto, x=140, y=pdf.get_y(), w=50)
+                        # Retorna o cursor para o final do texto para o próximo item
+                        pdf.set_xy(10, y_atual)
+                    
                     pdf.ln(5)
-                    pdf.cell(190, 0, '', 'T', ln=True)
+                    pdf.cell(190, 0, '', 'T', ln=True) # Linha divisória
                     pdf.ln(5)
 
+                # Assinatura de Engenheiro
                 pdf.ln(15)
                 pdf.set_font("Arial", 'B', 10)
                 pdf.cell(0, 10, "________________________________________________", ln=True, align='C')
                 pdf.cell(0, 5, "Thiago Messias Carvalho Soares", ln=True, align='C')
-                pdf.set_font("Arial", '', 9)
                 pdf.cell(0, 5, "Engenheiro Civil - IFBA", ln=True, align='C')
                 
                 return pdf.output(dest='S').encode('latin-1', 'ignore')
 
-            # Botão de Impressão
-            pdf_data = gerar_pdf(df_filtrado, campus_sel)
+            # Botão de Impressão com fotos físicas
+            pdf_data = gerar_pdf_com_fotos(df_filtrado, campus_sel)
             st.download_button(
-                label="📄 Imprimir Relatório PDF",
+                label="📄 Imprimir Relatório PDF com Fotos",
                 data=pdf_data,
-                file_name=f"Relatorio_Inspeção_{campus_sel}_{datetime.now().strftime('%d_%m_%Y')}.pdf",
+                file_name=f"Relatorio_{campus_sel}_{datetime.now().strftime('%d_%m_%Y')}.pdf",
                 mime="application/pdf",
                 use_container_width=True
             )
