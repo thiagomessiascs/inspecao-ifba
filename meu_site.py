@@ -125,4 +125,16 @@ if verificar_login():
                 pdf_bytes = gerar_pdf(df_filtrado, campus_sel, edificacao_sel)
                 st.download_button(label="📥 Baixar PDF deste Campus/Edificação", data=pdf_bytes, file_name=f"Vistoria_{campus_sel}_{edificacao_sel}.pdf", mime="application/pdf")
                 
-                if st.button("🗑️ Limpar itens DE
+                if st.button("🗑️ Limpar itens DESTA edificação"):
+                    st.session_state['inspecoes'] = [d for d in st.session_state['inspecoes'] if not (d['Campus'] == campus_sel and d['Edificacao'] == edificacao_sel)]
+                    st.rerun()
+
+            with c2:
+                st.subheader("📊 Resumo de Prioridades")
+                fig = px.bar(df_filtrado, x='Status', color='Status', color_discrete_map={"CRÍTICA": "red", "MÉDIA": "orange", "BAIXA": "green"})
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info(f"Nenhum registro encontrado para {campus_sel} - {edificacao_sel}. Comece a adicionar acima!")
+
+    st.sidebar.markdown("---")
+    st.sidebar.caption("🚀 Desenvolvido por: Thiago Messias Carvalho Soares")
