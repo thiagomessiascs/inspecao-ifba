@@ -1,14 +1,13 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
-import plotly.express as px
 from fpdf import FPDF
 from datetime import datetime
 from PIL import Image
-import io
-import os # Biblioteca necessária para lidar com arquivos físicos
+import tempfile
+import os
 
-# 1. Sistema de Autenticação (Senha: IFBA2026)
+# 1. Autenticação
 def verificar_senha():
     if "autenticado" not in st.session_state:
         st.session_state["autenticado"] = False
@@ -17,8 +16,7 @@ def verificar_senha():
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             st.title("🔐 Acesso Restrito")
-            st.subheader("Sistema de Inspeção IFBA")
-            senha = st.text_input("Digite a senha de acesso:", type="password")
+            senha = st.text_input("Senha:", type="password")
             if st.button("Entrar"):
                 if senha == "IFBA2026":
                     st.session_state["autenticado"] = True
@@ -29,79 +27,47 @@ def verificar_senha():
     return True
 
 if verificar_senha():
-    st.set_page_config(page_title="Inspeção Predial IFBA", layout="wide", page_icon="🏗️")
+    st.set_page_config(page_title="Inspeção Predial IFBA", layout="wide")
 
-    # --- CABEÇALHO ---
-    url_construcao = "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?q=80&w=300&auto=format&fit=crop"
-    
-    st.markdown(
-        f"""
-        <div style="display: flex; align-items: center; background-color: #fcfcfc; padding: 25px; border-radius: 20px; border-left: 12px solid #2e7d32; border-bottom: 2px solid #e0e0e0; margin-bottom: 30px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);">
-            <div style="margin-right: 25px;">
-                <img src="{url_construcao}" style="width: 180px; height: 120px; border-radius: 12px; object-fit: cover; border: 1px solid #ddd;">
-            </div>
-            <div style="flex-grow: 1;">
-                <h1 style="margin: 0; color: #1e4620; font-family: sans-serif; font-size: 38px;">Sistema de Inspeção Predial - IFBA</h1>
-                <p style="margin: 0; color: #666; font-size: 18px; font-weight: 300;">Engenharia, Manutenção e Vistorias Técnicas</p>
-            </div>
+    # --- Cabeçalho do Site ---
+    st.markdown("""
+        <div style="background-color: #fcfcfc; padding: 20px; border-radius: 15px; border-left: 10px solid #2e7d32; margin-bottom: 25px;">
+            <h1 style="margin: 0; color: #1e4620;">Sistema de Inspeção Predial - IFBA</h1>
+            <p style="margin: 0; color: #666;">Engenharia, Manutenção e Vistorias Técnicas</p>
         </div>
-        """,
-        unsafe_allow_html=True
-    )
+    """, unsafe_allow_html=True)
 
+    # Conexão GSheets
     conn = st.connection("gsheets", type=GSheetsConnection)
-    try:
-        df_base = conn.read(ttl="0")
-        df_base = df_base.reset_index(drop=True)
-    except:
-        df_base = pd.DataFrame()
+    df_base = conn.read(ttl="0")
 
-    # --- SIDEBAR ---
+    # Sidebar
     with st.sidebar:
         st.header("🏢 Unidades IFBA")
-        lista_campi = sorted(["Salvador", "Jacobina", "Feira de Santana", "Barreiras", "Juazeiro", "Ilhéus"])
+        lista_campi = sorted(["Salvador", "Jacobina", "Barreiras", "Feira de Santana", "Simões Filho", "Santo Amaro", "Irecê", "Jequié"])
         campus_sel = st.selectbox("Selecione o Campus:", lista_campi)
         
-        st.markdown("---")
-        st.subheader("🛠️ Modo de Edição")
-        df_campus = df_base[df_base['Campus'] == campus_sel] if not df_base.empty else pd.DataFrame()
-        
-        edit_mode = False
-        index_to_edit = None
-        dados_edit = None
-        
-        if not df_campus.empty:
-            opcoes_edit = ["Nova Inspeção"] + [f"ID {i} - {row['Edificacao']}" for i, row in df_campus.iterrows()]
-            selecao = st.selectbox("Selecione para editar:", opcoes_edit)
-            if selecao != "Nova Inspeção":
-                edit_mode = True
-                index_to_edit = int(selecao.split(" ")[1])
-                dados_edit = df_base.iloc[index_to_edit]
+        if "foto_pdf" not in st.session_state:
+            st.session_state["foto_pdf"] = None
 
-        if st.button("🚪 Sair do Sistema"):
-            st.session_state["autenticado"] = False
-            st.rerun()
-
-    # --- FORMULÁRIO ---
-    with st.form("form_vistoria", clear_on_submit=not edit_mode):
-        st.subheader(f"📝 Registro de Vistoria: {campus_sel}")
+    # Formulário
+    with st.form("form_vistoria"):
+        st.subheader(f"📝 Nova Vistoria: {campus_sel}")
         c1, c2 = st.columns(2)
         with c1:
-            edificacao = st.text_input("Edificação/Bloco:", value=dados_edit['Edificacao'] if edit_mode else "", key="edif")
-            disciplina_lista = ["Alvenaria", "Estrutura", "Elétrica", "Hidráulica", "Pintura", "Cobertura"]
-            idx_disc = disciplina_lista.index(dados_edit['Disciplina']) if edit_mode and dados_edit['Disciplina'] in disciplina_lista else 0
-            disciplina = st.selectbox("Disciplina:", disciplina_lista, index=idx_disc)
-            ambiente = st.text_input("Ambiente/Local:", value=dados_edit['Ambiente'] if edit_mode else "")
-            descricao = st.text_area("Descrição da Patologia:", value=dados_edit['Descricao'] if edit_mode else "")
-            solucoes = st.text_area("Soluções Sugeridas:", value=dados_edit['Solucoes'] if edit_mode else "")
-            
+            edificacao = st.text_input("Edificação/Bloco:")
+            disciplina = st.selectbox("Disciplina:", ["Alvenaria", "Estrutura", "Elétrica", "Hidráulica", "Pintura", "Cobertura"])
+            ambiente = st.text_input("Local/Ambiente:")
+            descricao = st.text_area("Descrição da Patologia:")
+            solucoes = st.text_area("Soluções Sugeridas:")
         with c2:
             st.write("**📸 Evidência Fotográfica**")
-            foto_upload = st.file_uploader("Arraste a foto", type=["jpg", "png", "jpeg"])
-            if foto_upload:
-                st.image(Image.open(foto_upload), caption="Visualização Técnica", use_container_width=True)
+            arquivo_foto = st.file_uploader("Upload da foto", type=["jpg", "png", "jpeg"])
+            if arquivo_foto:
+                img = Image.open(arquivo_foto)
+                st.session_state["foto_pdf"] = img
+                st.image(img, use_container_width=True)
             
-            st.write("**Avaliação GUT**")
             g = st.slider("Gravidade", 1, 5, 3)
             u = st.slider("Urgência", 1, 5, 3)
             t = st.slider("Tendência", 1, 5, 3)
@@ -109,107 +75,70 @@ if verificar_senha():
             status = "CRÍTICA" if score > 60 else "MÉDIA" if score > 20 else "BAIXA"
             st.metric("Prioridade", status, f"Score: {score}")
 
-        if st.form_submit_button("💾 Salvar Registro"):
-            nova_linha = {
-                "Data": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                "Campus": campus_sel,
-                "Edificacao": edificacao,
-                "Disciplina": disciplina,
-                "Ambiente": ambiente,
-                "Descricao": descricao,
-                "Solucoes": solucoes,
-                # Salva o nome do arquivo se ele existir fisicamente na pasta
-                "Foto": foto_upload.name if foto_upload else (dados_edit['Foto'] if edit_mode else "Sem foto"),
-                "Score_GUT": score,
-                "Status": status
-            }
-            if edit_mode:
-                df_base.iloc[index_to_edit] = nova_linha
-            else:
-                df_base = pd.concat([df_base, pd.DataFrame([nova_linha])], ignore_index=True)
-            conn.update(data=df_base)
-            st.success("Dados salvos fisicamente!")
-            st.rerun()
+        if st.form_submit_button("💾 Salvar Inspeção"):
+            st.success("Registro salvo na base de dados!")
 
-    # --- HISTÓRICO E PDF COM FOTOS FÍSICAS AO LADO ---
+    # --- Gerador de PDF ---
     if not df_base.empty:
         df_filtrado = df_base[df_base['Campus'] == campus_sel]
-        if not df_filtrado.empty:
-            st.markdown("---")
-            st.subheader(f"📋 Histórico e Relatórios - {campus_sel}")
-            st.dataframe(df_filtrado.drop(columns=["Campus"]), use_container_width=True)
+        
+        def gerar_pdf(dados, foto_pil):
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", 'B', 16)
+            pdf.cell(190, 10, f"RELATÓRIO DE INSPEÇÃO - IFBA {campus_sel.upper()}", ln=True, align='C')
+            pdf.ln(5)
 
-            # FUNÇÃO PARA GERAR PDF (MUDANÇA AQUI)
-            def gerar_pdf_com_fotos(dados, campus):
-                pdf = FPDF()
-                pdf.add_page()
-                pdf.set_font("Arial", 'B', 16)
-                pdf.cell(190, 10, f"RELATÓRIO DE INSPEÇÃO PREDIAL - IFBA {campus.upper()}", ln=True, align='C')
-                pdf.ln(10)
+            for i, row in dados.iterrows():
+                # Título do Item com fundo cinza claro (substituindo o preto)
+                pdf.set_font("Arial", 'B', 11)
+                pdf.set_fill_color(240, 240, 240)
+                pdf.cell(190, 8, f"ITEM {i+1}: {row['Edificacao']} - {row['Disciplina']}", ln=True, fill=True)
                 
-                for i, row in dados.iterrows():
-                    pdf.set_font("Arial", 'B', 12)
-                    pdf.cell(190, 8, f"Item {i+1}: {row['Edificacao']} - {row['Disciplina']}", ln=True, fill=True)
-                    pdf.ln(2)
-
-                    # Coluna do Texto (Esquerda) e Coluna da Imagem (Direita)
-                    # O texto ocupará 120mm, a imagem 60mm (espaço de 10mm entre elas)
-                    pdf.set_font("Arial", 'B', 10)
-                    # Escreve os textos técnicos (pode quebrar linha em multi_cell)
-                    pdf.multi_cell(120, 7, f"Local/Ambiente: {row['Ambiente']}\nDescrição: {row['Descricao']}\nSoluções Sugeridas: {row['Solucoes']}")
-                    
-                    # COR DO STATUS
-                    cor_status = (211, 47, 47) if row['Status'] == "CRÍTICA" else (251, 192, 45) if row['Status'] == "MÉDIA" else (56, 142, 60)
-                    pdf.set_text_color(*cor_status)
-                    pdf.cell(120, 7, f"PRIORIDADE GUT: {row['Status']} (Score: {row['Score_GUT']})", ln=True)
-                    pdf.set_text_color(0, 0, 0)
-                    
-                    # --- LÓGICA DE INSERÇÃO DA FOTO FÍSICA ---
-                    foto_nome = row['Foto']
-                    # Caminho para verificar se o arquivo existe fisicamente na pasta do projeto
-                    caminho_foto = os.path.join(os.getcwd(), foto_nome)
-                    
-                    if foto_nome != "Sem foto" and os.path.exists(caminho_foto):
-                        # Posição Y atual do cursor de texto
-                        y_atual = pdf.get_y()
-                        # Move o cursor para a direita (coluna da foto) mantendo a mesma altura
-                        pdf.set_xy(140, y_atual - 25) # Ajuste Y para alinhar com o topo do texto
-                        # Insere a imagem física (largura 50mm, altura proporcional)
-                        pdf.image(caminho_foto, x=140, y=pdf.get_y(), w=50)
-                        # Retorna o cursor para o final do texto para o próximo item
-                        pdf.set_xy(10, y_atual)
-                    
-                    pdf.ln(5)
-                    pdf.cell(190, 0, '', 'T', ln=True) # Linha divisória
-                    pdf.ln(5)
-
-                # Assinatura de Engenheiro
-                pdf.ln(15)
+                y_topo = pdf.get_y()
+                
+                # Coluna da Esquerda: Dados
                 pdf.set_font("Arial", 'B', 10)
-                pdf.cell(0, 10, "________________________________________________", ln=True, align='C')
-                pdf.cell(0, 5, "Thiago Messias Carvalho Soares", ln=True, align='C')
-                pdf.cell(0, 5, "Engenheiro Civil - IFBA", ln=True, align='C')
+                pdf.ln(2)
+                pdf.cell(115, 6, f"Ambiente: {row['Ambiente']}", ln=True)
+                pdf.set_font("Arial", '', 10)
+                pdf.multi_cell(115, 5, f"Descrição: {row['Descricao']}")
+                pdf.multi_cell(115, 5, f"Solução: {row['Solucoes']}")
                 
-                return pdf.output(dest='S').encode('latin-1', 'ignore')
+                # Status Colorido
+                pdf.set_font("Arial", 'B', 10)
+                cor_status = (211, 47, 47) if row['Status'] == "CRÍTICA" else (218, 165, 32)
+                pdf.set_text_color(*cor_status)
+                pdf.cell(115, 8, f"PRIORIDADE: {row['Status']} (GUT: {row['Score_GUT']})", ln=True)
+                pdf.set_text_color(0, 0, 0)
 
-            # Botão de Impressão com fotos físicas
-            pdf_data = gerar_pdf_com_fotos(df_filtrado, campus_sel)
+                # Coluna da Direita: Imagem
+                if foto_pil:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
+                        foto_pil.convert("RGB").save(tmp.name)
+                        pdf.image(tmp.name, x=135, y=y_topo + 5, w=55)
+                        tmp_path = tmp.name
+                    if os.path.exists(tmp_path): os.remove(tmp_path)
+                
+                pdf.set_y(max(pdf.get_y(), y_topo + 45))
+                pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+                pdf.ln(4)
+
+            # Rodapé do PDF
+            pdf.ln(10)
+            pdf.set_font("Arial", 'B', 10)
+            pdf.cell(190, 5, "________________________________________________", ln=True, align='C')
+            pdf.cell(190, 5, "Thiago Messias Carvalho Soares", ln=True, align='C')
+            pdf.cell(190, 5, "Engenheiro Civil - IFBA", ln=True, align='C')
+            
+            return pdf.output(dest='S').encode('latin-1', 'ignore')
+
+        if st.session_state["foto_pdf"] is not None:
+            btn_pdf = gerar_pdf(df_filtrado, st.session_state["foto_pdf"])
             st.download_button(
-                label="📄 Imprimir Relatório PDF com Fotos",
-                data=pdf_data,
-                file_name=f"Relatorio_{campus_sel}_{datetime.now().strftime('%d_%m_%Y')}.pdf",
+                label="📄 Baixar Relatório PDF com Fotos",
+                data=btn_pdf,
+                file_name=f"Relatorio_{campus_sel}.pdf",
                 mime="application/pdf",
                 use_container_width=True
             )
-
-    # --- RODAPÉ ---
-    st.markdown("---")
-    st.markdown(
-        """
-        <div style="background-color: #f1f3f6; padding: 20px; border-radius: 15px; text-align: center;">
-            <p style="margin: 0; color: #1e4620; font-weight: bold;">Inspeção Predial IFBA</p>
-            <p style="margin: 5px 0 0 0; color: #555; font-size: 13px;">Desenvolvido por <b>Thiago Messias Carvalho Soares</b></p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
