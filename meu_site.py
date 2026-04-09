@@ -1,90 +1,107 @@
 import streamlit as st
-import pandas as pd
 from streamlit_gsheets import GSheetsConnection
+import pandas as pd
 import plotly.express as px
+from fpdf import FPDF
+from datetime import datetime
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Inspeção Predial IFBA", layout="wide")
-st.title("🏗️ Sistema de Inspeção Predial - IFBA")
+# Configuração da página
+st.set_page_config(page_title="Sistema de Inspeção Predial - IFBA", layout="wide")
 
-# Criando a conexão com o Google Sheets
+# 1. Conexão com Google Sheets
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- LOGIN SIMPLES ---
-if 'logado' not in st.session_state:
-    st.session_state.logado = False
+# 2. Carregar dados
+try:
+    df = conn.read(ttl="0") # ttl="0" força a leitura de dados novos sempre
+except Exception as e:
+    st.error(f"Erro ao conectar na planilha: {e}")
+    df = pd.DataFrame()
 
-if not st.session_state.logado:
-    st.sidebar.title("🔐 Acesso")
-    u = st.sidebar.text_input("Usuário")
-    p = st.sidebar.text_input("Senha", type="password")
-    if st.sidebar.button("Entrar"):
-        if u == "admin" and p == "ifba123":
-            st.session_state.logado = True
-            st.rerun()
-else:
-    # --- BARRA LATERAL (FILTROS) ---
-    st.sidebar.button("Sair / Logoff", on_click=lambda: st.session_state.update({"logado": False}))
-    lista_campi = ["Salvador", "Feira de Santana", "Simões Filho", "Santo Amaro", "Vitória da Conquista"]
-    campus_sel = st.sidebar.selectbox("Selecione o Campus:", lista_campi)
-    edificacao_sel = st.sidebar.text_input("Edificação:", placeholder="Ex: Pavilhão A")
+# Título e Logo
+st.title("🏗️ Sistema de Inspeção Predial - IFBA")
+st.markdown("---")
 
-    # --- LEITURA DOS DADOS ---
-    try:
-        # Lê a planilha em tempo real
-        df_base = conn.read(ttl=0)
-    except:
-        # Se a planilha estiver vazia, cria a estrutura
-        df_base = pd.DataFrame(columns=["Campus", "Edificacao", "Disciplina", "Ambiente", "Patologia", "GUT", "Status"])
+# 3. Sidebar - Filtros e Seleção de Campus
+with st.sidebar:
+    st.header("Configurações")
+    # Lista atualizada de Campi
+    campi_ifba = ["Salvador", "Feira de Santana", "Simões Filho", "Santo Amaro", "Vitória da Conquista", "Valença"]
+    campus_sel = st.selectbox("Selecione o Campus:", campi_ifba)
+    
+    if st.button("Sair / Logoff"):
+        st.info("Sessão encerrada.")
 
-    # --- FORMULÁRIO DE ENTRADA ---
-    with st.expander("➕ Registrar Nova Patologia", expanded=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            disciplina = st.selectbox("Disciplina:", ["Alvenaria", "Elétrica", "Hidrossanitário", "Estrutura", "Cobertura"])
-            ambiente = st.text_input("Ambiente/Local:")
-            patologia = st.text_input("Descrição da Patologia:")
-        with col2:
-            g = st.slider("Gravidade", 1, 5, 3)
-            u = st.slider("Urgência", 1, 5, 3)
-            t = st.slider("Tendência", 1, 5, 3)
-            total_gut = g * u * t
-            status = "CRÍTICA" if total_gut >= 100 else "MÉDIA" if total_gut >= 50 else "BAIXA"
-            st.write(f"**Prioridade:** {status} ({total_gut})")
-
-        if st.button("💾 Gravar na Planilha"):
-            if edificacao_sel and ambiente and patologia:
-                nova_linha = pd.DataFrame([{
-                    "Campus": campus_sel,
-                    "Edificacao": edificacao_sel,
-                    "Disciplina": disciplina,
-                    "Ambiente": ambiente,
-                    "Patologia": patologia,
-                    "GUT": total_gut,
-                    "Status": status
-                }])
-                # Adiciona o novo dado ao que já existia
-                df_atualizado = pd.concat([df_base, nova_linha], ignore_index=True)
-                # Envia de volta para o Google Sheets
-                conn.update(data=df_atualizado)
-                st.success("Dados salvos com sucesso!")
-                st.rerun()
-            else:
-                st.error("Por favor, preencha todos os campos!")
-
-    # --- EXIBIÇÃO E GRÁFICOS ---
-    st.divider()
-    if not df_base.empty:
-        # Filtra para mostrar apenas o que pertence ao Campus e Edificação selecionados
-        df_filtrado = df_base[(df_base['Campus'] == campus_sel) & (df_base['Edificacao'] == edificacao_sel)]
+# 4. Formulário para Nova Patologia
+with st.expander("➕ Registrar Nova Patologia", expanded=True):
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        disciplina = st.selectbox("Disciplina:", ["Alvenaria", "Estrutura", "Elétrica", "Hidráulica", "Pintura", "Cobertura"])
+        ambiente = st.text_input("Ambiente/Local:")
+        descricao = st.text_area("Descrição da Patologia:")
         
-        if not df_filtrado.empty:
-            st.subheader(f"📋 Itens Registrados: {edificacao_sel}")
-            st.dataframe(df_filtrado.drop(columns=["Campus", "Edificacao"]), use_container_width=True)
+    with col2:
+        gravidade = st.slider("Gravidade", 1, 5, 3)
+        urgencia = st.slider("Urgência", 1, 5, 3)
+        tendencia = st.slider("Tendência", 1, 5, 3)
+        
+        # Cálculo de Prioridade (GUT)
+        total_gut = gravidade * urgencia * tendencia
+        prioridade = "ALTA" if total_gut > 60 else "MÉDIA" if total_gut > 20 else "BAIXA"
+        st.write(f"**Prioridade:** {prioridade} ({total_gut})")
+
+    if st.button("💾 Gravar na Planilha"):
+        nova_linha = pd.DataFrame([{
+            "Data": datetime.now().strftime("%d/%m/%Y"),
+            "Campus": campus_sel,
+            "Disciplina": disciplina,
+            "Ambiente": ambiente,
+            "Descricao": descricao,
+            "G": gravidade, "U": urgencia, "T": tendencia,
+            "Total": total_gut,
+            "Prioridade": prioridade
+        }])
+        
+        # Lógica para salvar (Update)
+        df_atualizado = pd.concat([df, nova_linha], ignore_index=True)
+        conn.update(data=df_atualizado)
+        st.success("Dados gravados com sucesso! Clique em 'Clear Cache' se não aparecer abaixo.")
+
+st.markdown("---")
+
+# 5. Visualização e Gráficos
+if not df.empty:
+    st.subheader(f"Relatório de Inspeções - Campus {campus_sel}")
+    
+    # Filtrar dados pelo campus selecionado
+    df_filtrado = df[df['Campus'] == campus_sel]
+    
+    if not df_filtrado.empty:
+        # Gráfico de Disciplinas
+        fig = px.pie(df_filtrado, names='Disciplina', title='Distribuição por Disciplina', hole=0.4)
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Tabela de Dados
+        st.dataframe(df_filtrado, use_container_width=True)
+        
+        # 6. Gerar PDF
+        if st.button("📄 Gerar Relatório PDF"):
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", 'B', 16)
+            pdf.cell(200, 10, f"Relatorio de Inspecao - {campus_sel}", ln=True, align='C')
             
-            # Gráfico de Prioridades
-            fig = px.bar(df_filtrado, x='Status', title="Resumo de Prioridades", 
-                         color='Status', color_discrete_map={"CRÍTICA": "red", "MÉDIA": "orange", "BAIXA": "green"})
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info(f"Nenhum registro encontrado para {campus_sel} - {edificacao_sel}.")
+            pdf.set_font("Arial", '', 12)
+            pdf.ln(10)
+            for index, row in df_filtrado.iterrows():
+                pdf.multi_cell(0, 10, f"{row['Data']} - {row['Disciplina']}: {row['Descricao']} (Prioridade: {row['Prioridade']})")
+                pdf.ln(2)
+            
+            pdf_output = pdf.output(dest='S').encode('latin-1', 'ignore')
+            st.download_button(label="📥 Baixar PDF", data=pdf_output, file_name=f"relatorio_{campus_sel}.pdf", mime="application/pdf")
+    else:
+        st.warning(f"Nenhum registro encontrado para o campus {campus_sel}.")
+else:
+    st.info("Aguardando carregamento de dados da planilha...")
+    
