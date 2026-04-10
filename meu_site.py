@@ -70,7 +70,7 @@ def gerar_pdf_final(df_filtro, campus, eng_nome):
         pdf.set_font("Arial", 'B', 11)
         pdf.cell(190, 8, f"Item {i+1}: {row['Edificacao']}", ln=True, fill=True)
         pdf.set_font("Arial", '', 9)
-        pdf.multi_cell(110, 5, f"Ambiente: {row['Ambiente']}\nDescrição: {row['Descricao']}\nSoluções: {row['Solucoes']}")
+        pdf.multi_cell(110, 5, f"Ambiente: {row['Ambiente']}\nDescrição: {row['Descricao']}\nSolucoes: {row['Solucoes']}")
         if row['Link_Foto']:
             try:
                 img_data = requests.get(row['Link_Foto']).content
@@ -84,7 +84,7 @@ def gerar_pdf_final(df_filtro, campus, eng_nome):
     pdf.cell(0, 5, eng_nome, ln=True, align='C')
     return pdf.output(dest='S').encode('latin-1', 'ignore')
 
-# --- 3. INTERFACE COM LAYOUT ORIGINAL ---
+# --- 3. INTERFACE COM LAYOUT ORIGINAL RECUPERADO ---
 st.set_page_config(page_title="Inspeção Predial IFBA", layout="wide")
 
 st.markdown("""
@@ -92,11 +92,18 @@ st.markdown("""
     .main { background-color: #ffffff; }
     .stButton>button { width: 100%; background-color: #2e7d32; color: white; border-radius: 5px; height: 3em; }
     .profile-pic { width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 4px solid #2e7d32; display: block; margin: 0 auto; }
+    
     /* CSS PARA O QUADRADINHO VERDE DO TÍTULO */
     .title-card { 
-        border: 2px solid #2e7d32; border-left: 15px solid #2e7d32; 
-        padding: 25px; border-radius: 15px; background-color: #fcfcfc;
-        display: flex; align-items: center; margin-bottom: 30px;
+        border: 2px solid #2e7d32; 
+        border-left: 15px solid #2e7d32; /* Borda grossa lateral original */
+        padding: 30px; 
+        border-radius: 15px; 
+        background-color: #fcfcfc;
+        display: flex; 
+        align-items: center; 
+        justify-content: center; /* Centraliza o conteúdo dentro da caixa */
+        margin-bottom: 30px;
     }
     .sidebar-content { text-align: center; }
     </style>
@@ -121,7 +128,6 @@ else:
         st.subheader("🕵️ Vistoriador")
         eng_ativo = st.selectbox("Engenheiro:", list(EQUIPE.keys()), label_visibility="collapsed")
         st.markdown(f'<img src="{EQUIPE[eng_ativo]["foto"]}" class="profile-pic">', unsafe_allow_html=True)
-        # NOME ABAIXO DA FOTO REMOVIDO CONFORME SOLICITADO
         
         st.markdown("<br><br>", unsafe_allow_html=True)
         st.subheader("🏢 Unidades PRODIN")
@@ -130,13 +136,13 @@ else:
         if st.button("Sair"): st.session_state["autenticado"] = False; st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # BANNER CENTRAL COM QUADRADO VERDE
+    # BANNER CENTRAL COM QUADRADO VERDE RECUPERADO E ÍCONE DE EDIFICAÇÃO
     st.markdown(f"""
         <div class="title-card">
-            <img src="https://github.com/thiagomessiascs/inspecao-ifba/blob/main/IFBA_Logo.png?raw=true" width="100" style="margin-right:30px;">
+            <span style="font-size: 4em; color: #1e4620; margin-right: 25px;">🏢</span>
             <div>
-                <h1 style="color:#1e4620; margin:0;">Sistema de Inspeção Predial - IFBA</h1>
-                <p style="color:#666; margin:0; font-size:1.1em;">Engenharia, Manutenção e Vistorias Técnicas</p>
+                <h1 style="color:#1e4620; margin:0; font-size: 2.5em;">Sistema de Inspeção Predial - IFBA</h1>
+                <p style="color:#666; margin:0; font-size:1.2em;">Engenharia, Manutenção e Vistorias Técnicas</p>
             </div>
         </div>
     """, unsafe_allow_html=True)
