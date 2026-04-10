@@ -3,7 +3,7 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
 
-# --- 1. CONFIGURAÇÃO DA EQUIPE PRODIN ---
+# --- 1. CONFIGURAÇÃO DA EQUIPE E MAPA PRODIN (BANNER OFICIAL) ---
 EQUIPE = {
     "Eng. Thiago": {"campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"], "foto": "https://github.com/thiagomessiascs/inspecao-ifba/blob/main/Thiago.jpg?raw=true"},
     "Eng. Roger": {"campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"], "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"},
@@ -18,21 +18,22 @@ DADOS_TECNICOS = {
     "Estrutura": {"patologias": ["Corrosão de armadura", "Segregação de concreto", "Fissura estrutural", "Outros"], "solucoes": ["Escarificação e tratamento", "Grouteamento", "Reforço", "Outros"]},
     "Cobertura": {"patologias": ["Telha quebrada", "Infiltração calha", "Estrutura comprometida", "Outros"], "solucoes": ["Substituição", "Impermeabilização", "Limpeza calha", "Outros"]},
     "Instalação elétrica": {"patologias": ["Fiação exposta", "Disjuntor desarmando", "Lâmpada queimada", "Outros"], "solucoes": ["Revisão fiação", "Troca componentes", "Substituição LED", "Outros"]},
-    "Instalação hidrossanitária": {"patologias": ["Vazamento torneira", "Entupimento", "Mau cheiro", "Outros"], "solucoes": ["Troca reparo", "Desobstrução", "Revisão tubulação", "Outros"]},
+    "Instalação hidrossanitária": {"patologias": ["Vazamento", "Entupimento", "Mau cheiro", "Outros"], "solucoes": ["Troca reparo", "Desobstrução", "Revisão tubulação", "Outros"]},
     "Outros": {"patologias": ["Outros"], "solucoes": ["Outros"]}
 }
 
-# --- 2. CONFIGURAÇÃO DA PÁGINA E ESTADO ---
-st.set_page_config(page_title="Inspeção Predial - IFBA PRODIN", layout="wide")
-
-# Inicialização de variáveis de controle
-if "form_data" not in st.session_state:
-    st.session_state.form_data = {"edif": None, "amb": None, "comp": "", "disc": None, "desc_txt": "", "sol_txt": "", "idx": None}
+# --- 2. ESTADO DO SISTEMA ---
+st.set_page_config(page_title="PRODIN - Inspeção Predial", layout="wide")
 
 if "login" not in st.session_state: st.session_state.login = False
+if "edit_idx" not in st.session_state: st.session_state.edit_idx = None
 
-def limpar_campos():
-    st.session_state.form_data = {"edif": None, "amb": None, "comp": "", "disc": None, "desc_txt": "", "sol_txt": "", "idx": None}
+# Função para limpar os campos após salvar ou cancelar
+def resetar_form():
+    st.session_state.edit_idx = None
+    for k in ["edif", "amb", "comp", "disc", "desc", "sol"]:
+        if f"f_{k}" in st.session_state:
+            st.session_state[f"f_{k}"] = "" if k in ["comp", "desc", "sol"] else None
 
 # --- 3. LOGIN ---
 if not st.session_state.login:
@@ -45,100 +46,92 @@ else:
 
     with st.sidebar:
         st.subheader("🕵️ Vistoriador")
-        eng_sel = st.selectbox("Selecione seu nome:", list(EQUIPE.keys())) #
-        st.image(EQUIPE[eng_sel]["foto"], width=100) # FOTO OFICIAL
+        eng_sel = st.selectbox("Selecione seu nome:", list(EQUIPE.keys()), key="eng_user")
+        st.image(EQUIPE[eng_sel]["foto"], width=100) # FOTO DO THIAGO
         
-        # Filtro de Campi por Engenheiro
         campi_permitidos = sorted(EQUIPE[eng_sel]["campi"])
-        campus_sel = st.selectbox("Campus da Vistoria:", campi_permitidos)
+        campus_sel = st.selectbox("Campus da Vistoria:", campi_permitidos, key="camp_user")
         if st.button("Sair"): st.session_state.login = False; st.rerun()
 
-    # --- 4. TÍTULO E FORMULÁRIO ---
     st.markdown(f'<h1 style="color:#1e4620;">🏢 Sistema de Inspeção Predial - IFBA</h1>', unsafe_allow_html=True)
     
-    with st.expander(f"📝 Formulário de Registro - {campus_sel}", expanded=True):
+    # --- 4. FORMULÁRIO BLINDADO ---
+    with st.container(border=True):
+        st.subheader(f"📝 {'Editando Registro' if st.session_state.edit_idx is not None else 'Novo Registro'} - {campus_sel}")
         col1, col2 = st.columns(2)
+        
         with col1:
-            edif_opc = ["Pavilhão administrativo", "Pavilhão acadêmico", "Refeitório", "Anexo", "Biblioteca", "Muro"]
-            edificacao = st.selectbox("Edificação/Bloco:", edif_opc, index=None if st.session_state.form_data["edif"] is None else edif_opc.index(st.session_state.form_data["edif"]))
-            
-            amb_opc = ["Sala de aula", "Laboratório", "Sanitário", "Corredor", "Pátio"]
-            ambiente = st.selectbox("Ambiente:", amb_opc, index=None if st.session_state.form_data["amb"] is None else amb_opc.index(st.session_state.form_data["amb"]))
-            
-            complemento = st.text_input("Nº ou Complemento:", value=st.session_state.form_data["comp"]) if ambiente and ("Sala" in ambiente or "Laboratório" in ambiente) else ""
-            disciplina = st.selectbox("Disciplina:", list(DADOS_TECNICOS.keys()), index=None if st.session_state.form_data["disc"] is None else list(DADOS_TECNICOS.keys()).index(st.session_state.form_data["disc"]))
+            edificacao = st.selectbox("Edificação/Bloco:", ["Pavilhão administrativo", "Pavilhão acadêmico", "Refeitório", "Anexo", "Biblioteca", "Muro"], key="f_edif")
+            ambiente = st.selectbox("Ambiente:", ["Sala de aula", "Laboratório", "Sanitário", "Corredor", "Pátio"], key="f_amb")
+            complemento = st.text_input("Nº ou Complemento:", key="f_comp")
+            disciplina = st.selectbox("Disciplina:", list(DADOS_TECNICOS.keys()), key="f_disc") #
 
         with col2:
             if disciplina:
-                desc_final = st.text_area("Descrição Técnica Detalhada:", value=st.session_state.form_data["desc_txt"])
-                sol_final = st.text_area("Proposta de Intervenção:", value=st.session_state.form_data["sol_txt"])
+                # Aqui as patologias voltam a aparecer automaticamente
+                pats = DADOS_TECNICOS[disciplina]["patologias"]
+                sols = DADOS_TECNICOS[disciplina]["solucoes"]
+                
+                pat_aux = st.selectbox("Sugestão de Patologia:", pats, index=0)
+                desc_final = st.text_area("Descrição Técnica Detalhada:", key="f_desc")
+                
+                sol_aux = st.selectbox("Sugestão de Solução:", sols, index=0)
+                sol_final = st.text_area("Proposta de Intervenção:", key="f_sol")
             else:
-                st.info("💡 Escolha a Disciplina para habilitar os campos.")
+                st.info("Escolha a disciplina para liberar descrição e solução.")
                 desc_final = sol_final = ""
 
-        # GUT e Foto
-        st.markdown("---")
-        c1, c2 = st.columns(2)
-        with c1:
-            foto = st.file_uploader("📸 Registro Fotográfico", type=["jpg", "png", "jpeg"])
-        with c2:
-            st.write("**Avaliação de Prioridade (GUT)**")
-            g = st.select_slider("Gravidade", [1,2,3,4,5], 3)
-            u = st.select_slider("Urgência", [1,2,3,4,5], 3)
-            t = st.select_slider("Tendência", [1,2,3,4,5], 3)
-            score = g*u*t
-            st.info(f"Score GUT: {score}")
-
-        # BOTÃO SALVAR (Com Limpeza de Campos CORRIGIDA)
-        col_btn1, col_btn2 = st.columns([1, 4])
-        with col_btn1:
-            if st.button("💾 Salvar Inspeção", use_container_width=True):
+        # Botões de Ação
+        b1, b2, _ = st.columns([1, 1, 3])
+        with b1:
+            if st.button("💾 Salvar Registro", use_container_width=True):
                 if edificacao and disciplina:
-                    nova_linha = {
+                    nova_data = {
                         "Data": datetime.now().strftime("%d/%m/%Y"), "Engenheiro": eng_sel, "Campus": campus_sel,
                         "Edificacao": edificacao, "Ambiente": f"{ambiente} {complemento}", "Disciplina": disciplina,
-                        "Descricao": desc_final, "Solucoes": sol_final, "Score_GUT": score
+                        "Descricao": desc_final, "Solucoes": sol_final
                     }
-                    if st.session_state.form_data["idx"] is not None:
-                        # Lógica de EDIÇÃO: sobrescreve a linha
-                        df_base.iloc[st.session_state.form_data["idx"]] = nova_linha
+                    if st.session_state.edit_idx is not None:
+                        df_base.iloc[st.session_state.edit_idx] = nova_data
                     else:
-                        # Lógica de NOVO REGISTRO
-                        df_base = pd.concat([df_base, pd.DataFrame([nova_linha])], ignore_index=True)
+                        df_base = pd.concat([df_base, pd.DataFrame([nova_data])], ignore_index=True)
                     
                     conn.update(data=df_base)
-                    st.success("✅ Histórico processado!")
-                    limpar_campos() # LIMPEZA EFETIVA DO CÉREBRO DO FORM
+                    st.success("✅ Histórico atualizado!")
+                    resetar_form()
                     st.rerun()
-                else:
-                    st.error("Preencha Edificação e Disciplina.")
-        with col_btn2:
-            if st.session_state.form_data["idx"] is not None:
-                if st.button("❌ Cancelar Edição"): limpar_campos(); st.rerun()
+        with b2:
+            if st.session_state.edit_idx is not None:
+                if st.button("❌ Cancelar", use_container_width=True):
+                    resetar_form(); st.rerun()
 
-    # --- 5. TABELA DE HISTÓRICO COM EDIÇÃO CORRIGIDA ---
+    # --- 5. HISTÓRICO COM EDIÇÃO FUNCIONAL ---
     st.markdown("---")
     st.subheader(f"📋 Registros Recentes em {campus_sel}")
-    df_campus = df_base[df_base['Campus'] == campus_sel].reset_index()
+    df_campus = df_base[df_base['Campus'] == campus_sel].copy()
     
     if not df_campus.empty:
-        st.dataframe(df_campus[["Data", "Edificacao", "Ambiente", "Disciplina", "Score_GUT"]].tail(10), use_container_width=True)
+        st.dataframe(df_campus[["Edificacao", "Ambiente", "Disciplina", "Descricao"]].tail(10), use_container_width=True)
         
-        # Área de Edição Inteligente
-        sel_idx = st.selectbox("Para EDITAR, selecione o registro abaixo pelo número (esquerda):", df_campus.index)
+        st.markdown("**Gerenciar Registro:**")
+        sel_idx = st.selectbox("Selecione o item para Editar ou Excluir:", df_campus.index)
         
-        if st.button("✏️ Carregar para Edição"):
-            item_real = df_campus.loc[sel_idx]
-            amb_puro = item_real["Ambiente"].split(" ")[0] if " " in item_real["Ambiente"] else item_real["Ambiente"]
-            comp_puro = item_real["Ambiente"].replace(amb_puro, "").strip()
-            
-            # Carrega nos Widgets usando o st.session_state
-            st.session_state.form_data = {
-                "edif": item_real["Edificacao"], "amb": amb_puro, "comp": comp_puro, 
-                "disc": item_real["Disciplina"], "desc_txt": item_real["Descricao"], 
-                "sol_txt": item_real["Solucoes"], "idx": item_real["index"] # Guardamos o índice real da planilha
-            }
-            st.rerun()
+        g1, g2, _ = st.columns([1, 1, 3])
+        with g1:
+            if st.button("✏️ Carregar para Edição", use_container_width=True):
+                item = df_base.loc[sel_idx]
+                st.session_state.edit_idx = sel_idx
+                # Preenche o formulário via session_state
+                st.session_state.f_edif = item["Edificacao"]
+                st.session_state.f_disc = item["Disciplina"]
+                st.session_state.f_desc = item["Descricao"]
+                st.session_state.f_sol = item["Solucoes"]
+                st.rerun()
+        with g2:
+            if st.button("🗑️ Excluir", use_container_width=True):
+                df_base = df_base.drop(sel_idx)
+                conn.update(data=df_base)
+                st.toast("Item removido!")
+                st.rerun()
 
-    # Rodapé Institucional
-    st.markdown(f'<div style="text-align:center; color:#888; font-size:12px; margin-top:50px;">Equipe PRODIN - IFBA 2026 | Thiago Messias Carvalho Soares | Roger Ramos Santana</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align:center; color:#888; font-size:12px; margin-top:50px;">PRODIN - IFBA 2026 | Thiago Messias & Roger Santana</div>', unsafe_allow_html=True)
