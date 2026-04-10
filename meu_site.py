@@ -6,9 +6,8 @@ from fpdf import FPDF
 from datetime import datetime
 from PIL import Image
 import io
-import tempfile
 
-# --- 1. CONFIGURAÇÃO DA EQUIPE (DADOS DO MAPA PRODIN) ---
+# --- 1. CONFIGURAÇÃO DA EQUIPE (PRODIN) ---
 EQUIPE = {
     "Eng. Thiago": {
         "campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"],
@@ -40,7 +39,7 @@ EQUIPE = {
     }
 }
 
-# 2. Sistema de Autenticação (Senha: IFBA2026)
+# 2. Sistema de Autenticação
 def verificar_senha():
     if "autenticado" not in st.session_state:
         st.session_state["autenticado"] = False
@@ -88,31 +87,33 @@ if verificar_senha():
     except:
         df_base = pd.DataFrame()
 
-    # --- SELEÇÃO DE ENGENHEIRO ---
-    st.subheader("👨‍🏫 Selecione o Engenheiro Vistoriador:")
-    cols_eng = st.columns(len(EQUIPE))
-    
-    if "eng_ativo" not in st.session_state:
-        st.session_state["eng_ativo"] = "Eng. Thiago"
-
-    for i, nome in enumerate(EQUIPE.keys()):
-        with cols_eng[i]:
-            if st.button(nome, key=f"btn_{nome}", use_container_width=True):
-                st.session_state["eng_ativo"] = nome
-                st.rerun()
-            st.image(EQUIPE[nome]["foto"], width=70) #
-
-    eng_ativo = st.session_state["eng_ativo"]
-    st.markdown(f"### 📍 Unidades de Responsabilidade: **{eng_ativo}**")
-    
-    lista_campi_dinamica = sorted(EQUIPE[eng_ativo]["campi"]) #
-    campus_sel = st.selectbox("Selecione o Campus para inspeção:", lista_campi_dinamica)
-
-    # --- SIDEBAR ---
+    # --- 3. BARRA LATERAL (NOVA ESTRUTURA) ---
     with st.sidebar:
-        st.header("🛠️ Opções")
-        df_campus = df_base[df_base['Campus'] == campus_sel] if not df_base.empty else pd.DataFrame()
+        st.header("👨‍🏫 Seleção de Vistoriador")
         
+        # Seleção do Engenheiro via Selectbox ou Radio para economizar espaço lateral
+        eng_nomes = list(EQUIPE.keys())
+        if "eng_ativo" not in st.session_state:
+            st.session_state["eng_ativo"] = "Eng. Thiago"
+            
+        eng_ativo = st.selectbox("Engenheiro Responsável:", eng_nomes, 
+                                 index=eng_nomes.index(st.session_state["eng_ativo"]))
+        st.session_state["eng_ativo"] = eng_ativo
+        
+        # Exibe a foto do engenheiro selecionado na lateral
+        st.image(EQUIPE[eng_ativo]["foto"], width=80)
+        
+        st.markdown("---")
+        st.header("🏢 Unidades PRODIN")
+        
+        # Lista dinâmica de Campi baseada no Engenheiro
+        lista_campi_dinamica = sorted(EQUIPE[eng_ativo]["campi"])
+        campus_sel = st.selectbox("Selecione o Campus:", lista_campi_dinamica)
+        
+        st.markdown("---")
+        st.subheader("🛠️ Opções")
+        
+        df_campus = df_base[df_base['Campus'] == campus_sel] if not df_base.empty else pd.DataFrame()
         edit_mode = False
         index_to_edit = None
         dados_edit = None
@@ -129,9 +130,11 @@ if verificar_senha():
             st.session_state["autenticado"] = False
             st.rerun()
 
-    # --- FORMULÁRIO ---
+    # --- 4. FORMULÁRIO PRINCIPAL ---
     with st.form("form_vistoria", clear_on_submit=not edit_mode):
-        st.subheader(f"📝 Registro: {campus_sel} (Vistoriador: {eng_ativo})")
+        st.subheader(f"📝 Registro de Vistoria: {campus_sel}")
+        st.info(f"Vistoriador Ativo: **{eng_ativo}**")
+        
         c1, c2 = st.columns(2)
         with c1:
             edificacao = st.text_input("Edificação/Bloco:", value=dados_edit['Edificacao'] if edit_mode else "", key="edif")
@@ -146,7 +149,7 @@ if verificar_senha():
             st.write("**📸 Evidência Fotográfica**")
             foto_upload = st.file_uploader("Arraste a foto", type=["jpg", "png", "jpeg"])
             if foto_upload:
-                st.image(Image.open(foto_upload), caption="Visualização", use_container_width=True)
+                st.image(Image.open(foto_upload), caption="Visualização da Patologia", use_container_width=True)
             
             st.write("**Avaliação GUT**")
             g = st.slider("Gravidade", 1, 5, 3)
@@ -154,9 +157,9 @@ if verificar_senha():
             t = st.slider("Tendência", 1, 5, 3)
             score = g * u * t
             status = "CRÍTICA" if score > 60 else "MÉDIA" if score > 20 else "BAIXA"
-            st.metric("Prioridade", status, f"Score: {score}")
+            st.metric("Prioridade de Intervenção", status, f"Score: {score}")
 
-        if st.form_submit_button("💾 Salvar Registro"):
+        if st.form_submit_button("💾 Salvar Registro Técnio"):
             nova_linha = {
                 "Data": datetime.now().strftime("%d/%m/%Y %H:%M"),
                 "Engenheiro": eng_ativo,
@@ -166,7 +169,7 @@ if verificar_senha():
                 "Ambiente": ambiente,
                 "Descricao": descricao,
                 "Solucoes": solucoes,
-                "Foto": "Anexada" if foto_upload else (dados_edit['Foto'] if edit_mode else "Sem foto"), #
+                "Foto": "Anexada" if foto_upload else (dados_edit['Foto'] if edit_mode else "Sem foto"),
                 "Score_GUT": score,
                 "Status": status
             }
@@ -175,28 +178,28 @@ if verificar_senha():
             else:
                 df_base = pd.concat([df_base, pd.DataFrame([nova_linha])], ignore_index=True)
             conn.update(data=df_base)
-            st.success("Dados salvos!")
+            st.success(f"Inspeção em {campus_sel} salva com sucesso!")
             st.rerun()
 
-    # --- HISTÓRICO E PDF ---
+    # --- 5. HISTÓRICO E PDF ---
     if not df_base.empty:
         df_filtrado = df_base[df_base['Campus'] == campus_sel]
         if not df_filtrado.empty:
             st.markdown("---")
-            st.subheader(f"📋 Histórico e Relatórios - {campus_sel}")
+            st.subheader(f"📋 Histórico de Ocorrências - {campus_sel}")
             st.dataframe(df_filtrado.drop(columns=["Campus"]), use_container_width=True)
 
             def gerar_pdf(dados, campus):
                 pdf = FPDF()
                 pdf.add_page()
                 pdf.set_font("Arial", 'B', 16)
-                pdf.cell(190, 10, f"RELATÓRIO DE INSPEÇÃO PREDIAL - IFBA {campus.upper()}", ln=True, align='C')
+                pdf.cell(190, 10, f"RELATÓRIO TÉCNICO DE INSPEÇÃO - IFBA {campus.upper()}", ln=True, align='C')
                 pdf.ln(10)
                 
                 for i, row in dados.iterrows():
                     pdf.set_fill_color(240, 240, 240)
                     pdf.set_font("Arial", 'B', 12)
-                    pdf.cell(190, 8, f"Item {i+1}: {row['Edificacao']} - Resp: {row.get('Engenheiro', 'N/A')}", ln=True, fill=True) #
+                    pdf.cell(190, 8, f"Item {i+1}: {row['Edificacao']} - Resp: {row.get('Engenheiro', 'N/A')}", ln=True, fill=True)
                     
                     pdf.set_font("Arial", 'B', 10)
                     pdf.cell(40, 7, "Local/Ambiente:", 0)
@@ -209,12 +212,7 @@ if verificar_senha():
                     pdf.multi_cell(0, 5, f"{row['Descricao']}")
                     
                     pdf.set_font("Arial", 'B', 10)
-                    pdf.multi_cell(0, 7, "Soluções Sugeridas:")
-                    pdf.set_font("Arial", '', 10)
-                    pdf.multi_cell(0, 5, f"{row['Solucoes']}")
-                    
-                    pdf.set_font("Arial", 'B', 10)
-                    cor_status = (211, 47, 47) if row['Status'] == "CRÍTICA" else (251, 192, 45) if row['Status'] == "MÉDIA" else (56, 142, 60)
+                    cor_status = (211, 47, 47) if row['Status'] == "CRÍTICA" else (218, 165, 32)
                     pdf.set_text_color(*cor_status)
                     pdf.cell(0, 7, f"PRIORIDADE GUT: {row['Status']} (Score: {row['Score_GUT']})", ln=True)
                     pdf.set_text_color(0, 0, 0)
@@ -233,14 +231,14 @@ if verificar_senha():
 
             pdf_data = gerar_pdf(df_filtrado, campus_sel)
             st.download_button(
-                label="📄 Imprimir Relatório PDF",
+                label="📄 Exportar Relatório em PDF",
                 data=pdf_data,
-                file_name=f"Relatorio_{campus_sel}_{datetime.now().strftime('%d_%m_%Y')}.pdf",
+                file_name=f"Relatorio_{campus_sel}.pdf",
                 mime="application/pdf",
                 use_container_width=True
             )
 
-    # --- RODAPÉ COM NOMES DOS DESENVOLVEDORES ---
+    # --- RODAPÉ ---
     st.markdown("---")
     st.markdown(
         """
