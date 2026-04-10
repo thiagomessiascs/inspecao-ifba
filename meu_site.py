@@ -21,9 +21,9 @@ DADOS_TECNICOS = {
     "Outros": {"patologias": ["Outros"], "solucoes": ["Outros"]}
 }
 
-st.set_page_config(page_title="Sistema PRODIN - IFBA", layout="wide")
+st.set_page_config(page_title="PRODIN - Inspeção Predial", layout="wide")
 
-# --- 2. LÓGICA DE EDIÇÃO BLINDADA (DIALOG) ---
+# --- 2. LÓGICA DE EDIÇÃO VIA DIALOG (POP-UP) ---
 @st.dialog("✏️ Editar Registro")
 def editar_registro(index, row_data, conn, df_full):
     st.write(f"Editando item: **{row_data['Edificacao']}**")
@@ -39,10 +39,10 @@ def editar_registro(index, row_data, conn, df_full):
         df_full.loc[index, "Descricao"] = new_desc
         df_full.loc[index, "Solucoes"] = new_sol
         conn.update(data=df_full)
-        st.success("Registro atualizado!")
+        st.success("Registro atualizado com sucesso!")
         st.rerun()
 
-# --- 3. LOGIN E BARRA LATERAL AJUSTADA ---
+# --- 3. LOGIN E BARRA LATERAL ---
 if "login" not in st.session_state: st.session_state.login = False
 if not st.session_state.login:
     st.title("🔐 Login PRODIN")
@@ -54,64 +54,74 @@ else:
 
     with st.sidebar:
         st.markdown("<h3 style='text-align: center;'>🕵️ Vistoriador</h3>", unsafe_allow_html=True)
-        eng_sel = st.selectbox("Selecione seu nome:", list(EQUIPE.keys()))
+        eng_sel = st.selectbox("Nome:", list(EQUIPE.keys()))
         
-        # CENTRALIZAÇÃO DA FOTO
+        # Centralização da Foto
         col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
         with col_img2:
             st.image(EQUIPE[eng_sel]["foto"], width=120)
         
         st.markdown("---")
         campi_perm = sorted(EQUIPE[eng_sel]["campi"])
-        campus_sel = st.selectbox("Campus Atual:", campi_perm)
+        campus_sel = st.selectbox("Campus da Vistoria:", campi_perm)
         
         if st.button("Sair"): st.session_state.login = False; st.rerun()
 
-    # --- 4. FORMULÁRIO DE CADASTRO ---
+    # --- 4. FORMULÁRIO DE REGISTRO ---
     st.markdown(f'<h1 style="color:#1e4620;">🏢 Inspeção Predial - {campus_sel}</h1>', unsafe_allow_html=True)
     
-    with st.expander("➕ Iniciar Novo Registro", expanded=True):
+    with st.expander("📝 Formulário de Registro", expanded=True):
         c1, c2 = st.columns(2)
         with c1:
             edif = st.selectbox("Edificação/Bloco:", ["Pavilhão administrativo", "Pavilhão acadêmico", "Refeitório", "Anexo", "Biblioteca", "Muro"])
             amb = st.selectbox("Ambiente:", ["Sala de aula", "Laboratório", "Sanitário", "Corredor", "Pátio"])
-            disc = st.selectbox("Disciplina Técnica:", list(DADOS_TECNICOS.keys()))
+            disc = st.selectbox("Disciplina:", list(DADOS_TECNICOS.keys()))
         with c2:
-            if disc:
-                pat_sug = st.selectbox("Patologias Sugeridas:", DADOS_TECNICOS[disc]["patologias"])
-                desc = st.text_area("Descrição Técnica:", value=pat_sug if pat_sug != "Outros" else "")
-                sol_sug = st.selectbox("Soluções Sugeridas:", DADOS_TECNICOS[disc]["solucoes"])
+            if disc: # Lógica de patologias dinâmicas
+                pat_sug = st.selectbox("Sugestão de Patologia:", DADOS_TECNICOS[disc]["patologias"])
+                desc = st.text_area("Descrição Detalhada:", value=pat_sug if pat_sug != "Outros" else "")
+                sol_sug = st.selectbox("Sugestão de Solução:", DADOS_TECNICOS[disc]["solucoes"])
                 sol = st.text_area("Proposta de Intervenção:", value=sol_sug if sol_sug != "Outros" else "")
         
-        if st.button("💾 Finalizar e Salvar"):
+        if st.button("💾 Salvar Inspeção"):
             novo_item = {
                 "Data": datetime.now().strftime("%d/%m/%Y"), "Engenheiro": eng_sel, "Campus": campus_sel,
                 "Edificacao": edif, "Ambiente": amb, "Disciplina": disc, "Descricao": desc, "Solucoes": sol
             }
-            df_atualizado = pd.concat([df_base, pd.DataFrame([novo_item])], ignore_index=True)
-            conn.update(data=df_atualizado)
-            st.success("Dados enviados para a planilha!")
+            df_final = pd.concat([df_base, pd.DataFrame([novo_item])], ignore_index=True)
+            conn.update(data=df_final)
+            st.success("Dados salvos com sucesso!")
             st.rerun()
 
     # --- 5. HISTÓRICO E GESTÃO ---
     st.markdown("---")
-    st.subheader(f"📋 Histórico de Vistorias: {campus_sel}")
-    df_filtrado = df_base[df_base['Campus'] == campus_sel].copy()
+    st.subheader(f"📋 Registros Recentes - {campus_sel}")
+    df_campus = df_base[df_base['Campus'] == campus_sel].copy()
     
-    if not df_filtrado.empty:
-        st.dataframe(df_filtrado[["Edificacao", "Ambiente", "Disciplina", "Descricao"]].tail(10), use_container_width=True)
+    if not df_campus.empty:
+        st.dataframe(df_campus[["Edificacao", "Ambiente", "Disciplina", "Descricao"]].tail(10), use_container_width=True)
         
-        st.write("**Gerenciar Registros:**")
-        idx_selecionado = st.selectbox("Escolha o ID para ação:", df_filtrado.index)
+        st.write("**Gerenciar Registro:**")
+        id_selecionado = st.selectbox("Selecione o item (pelo ID à esquerda):", df_campus.index)
         
-        btn_edit, btn_del, _ = st.columns([1, 1, 3])
-        with btn_edit:
+        b_edit, b_del, _ = st.columns([1, 1, 3])
+        with b_edit:
             if st.button("✏️ Editar Item"):
-                editar_registro(idx_selecionado, df_base.loc[idx_selecionado], conn, df_base) #
-        with btn_del:
+                editar_registro(id_selecionado, df_base.loc[id_selecionado], conn, df_base) # Edição blindada
+        with b_del:
             if st.button("🗑️ Excluir"):
-                df_base = df_base.drop(idx_selecionado)
+                df_base = df_base.drop(id_selecionado)
                 conn.update(data=df_base)
                 st.rerun()
 
-    st.markdown(f'<div style="text-align:center; color:#888; font-size:12px; margin-top:30px;">PRODIN - IFBA | Engenharia e Manutenção</div>', unsafe_allow_html=True)
+    # --- RODAPÉ COM NOMES DOS DESENVOLVEDORES ---
+    st.markdown("---")
+    st.markdown(
+        f"""
+        <div style="text-align:center; color:#888; font-size:12px;">
+            <b>Desenvolvido por:</b> Eng. Thiago Messias Carvalho Soares & Eng. Roger Ramos Santana <br>
+            PRODIN - IFBA 2026 | Sistema de Apoio à Engenharia e Manutenção
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
