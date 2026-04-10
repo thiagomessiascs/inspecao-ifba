@@ -7,33 +7,40 @@ from PIL import Image
 import io
 
 # --- 1. CONFIGURAÇÃO DA EQUIPE (PRODIN) ---
+# Nomes completos configurados para a assinatura automática
 EQUIPE = {
     "Eng. Thiago": {
+        "nome_completo": "Thiago Messias Carvalho Soares",
         "campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"],
-        # Link Raw que você forneceu - Agora vai funcionar!
         "foto": "https://github.com/thiagomessiascs/inspecao-ifba/blob/main/Thiago.jpg?raw=true" 
     },
     "Eng. Roger": {
+        "nome_completo": "Roger Ramos Santana",
         "campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"],
         "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
     },
     "Eng. Laís": {
+        "nome_completo": "Lais Sampaio Machado",
         "campi": ["Barreiras", "Jaguaquara", "Jequié"],
         "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135823.png"
     },
     "Eng. Larissa": {
+        "nome_completo": "Larissa da Silva Oliveira",
         "campi": ["Campo Formoso", "Juazeiro", "Casa Nova", "Ilhéus", "Ubaitaba", "Camacã"],
         "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135823.png"
     },
     "Eng. Marcelo": {
+        "nome_completo": "Marcelo Souza Almeida",
         "campi": ["Brumado", "Vitória da Conquista"],
         "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
     },
     "Eng. Fenelon": {
+        "nome_completo": "Fenelon Bispo Pereira de Souza",
         "campi": ["Camaçari", "Lauro de Freitas", "Santo Antônio de Jesus", "Simões Filho", "Valença"],
         "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
     },
     "Eng. do Local": {
+        "nome_completo": "Engenheiro Responsável do Local",
         "campi": ["Salvador", "Reitoria - Salvador", "Polo de Inovação", "Salinas da Margarida", "São Desidério"],
         "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
     }
@@ -118,7 +125,6 @@ if verificar_senha():
                                  index=eng_nomes.index(st.session_state["eng_ativo"]))
         st.session_state["eng_ativo"] = eng_ativo
         
-        # HTML para a foto circular - Agora carregando via URL direta
         st.markdown(f"""
             <div class="sidebar-container">
                 <img src="{EQUIPE[eng_ativo]['foto']}" class="profile-pic">
@@ -128,8 +134,6 @@ if verificar_senha():
         
         st.markdown("---")
         st.header("🏢 Unidades PRODIN")
-        
-        # Lista dinâmica de Campi baseada no mapa da PRODIN
         lista_campi_dinamica = sorted(EQUIPE[eng_ativo]["campi"])
         campus_sel = st.selectbox("Selecione o Campus:", lista_campi_dinamica)
         
@@ -212,7 +216,7 @@ if verificar_senha():
             st.subheader(f"📋 Ocorrências - {campus_sel}")
             st.dataframe(df_filtrado.drop(columns=["Campus"]), use_container_width=True)
 
-            def gerar_pdf(dados, campus):
+            def gerar_pdf(dados, campus, eng_selecionado):
                 pdf = FPDF()
                 pdf.add_page()
                 pdf.set_font("Arial", 'B', 16)
@@ -222,7 +226,7 @@ if verificar_senha():
                 for i, row in dados.iterrows():
                     pdf.set_fill_color(240, 240, 240)
                     pdf.set_font("Arial", 'B', 12)
-                    pdf.cell(190, 8, f"Item {i+1}: {row['Edificacao']} - Resp: {row.get('Engenheiro', 'N/A')}", ln=True, fill=True)
+                    pdf.cell(190, 8, f"Item {i+1}: {row['Edificacao']}", ln=True, fill=True)
                     
                     pdf.set_font("Arial", 'B', 10)
                     pdf.cell(40, 7, "Local/Ambiente:", 0)
@@ -248,17 +252,21 @@ if verificar_senha():
                     pdf.cell(190, 0, '', 'T', ln=True)
                     pdf.ln(5)
 
+                # Assinatura dinâmica com o nome completo do dicionário
                 pdf.ln(15)
                 pdf.set_font("Arial", 'B', 10)
                 pdf.cell(0, 10, "________________________________________________", ln=True, align='C')
-                # Desenvolvedores: Thiago e Roger Santana
-                pdf.cell(0, 5, "Thiago Messias Carvalho Soares | Roger Ramos Santana", ln=True, align='C')
+                
+                nome_assinatura = EQUIPE[eng_selecionado]["nome_completo"]
+                pdf.cell(0, 5, nome_assinatura, ln=True, align='C')
+                
                 pdf.set_font("Arial", '', 9)
-                pdf.cell(0, 5, "Engenheiros Civis - Equipe PRODIN IFBA", ln=True, align='C')
+                pdf.cell(0, 5, "Engenheiro Civil - Equipe PRODIN IFBA", ln=True, align='C')
                 
                 return pdf.output(dest='S').encode('latin-1', 'ignore')
 
-            pdf_data = gerar_pdf(df_filtrado, campus_sel)
+            # Chamada da função passando o engenheiro ativo
+            pdf_data = gerar_pdf(df_filtrado, campus_sel, eng_ativo)
             st.download_button(
                 label="📄 Baixar Relatório PDF",
                 data=pdf_data,
