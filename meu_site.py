@@ -10,7 +10,8 @@ import io
 EQUIPE = {
     "Eng. Thiago": {
         "campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"],
-        "foto": "Thiago.jpg"  # Nome exato do arquivo que você subiu no GitHub
+        # Link Raw que você forneceu - Agora vai funcionar!
+        "foto": "https://github.com/thiagomessiascs/inspecao-ifba/blob/main/Thiago.jpg?raw=true" 
     },
     "Eng. Roger": {
         "campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"],
@@ -117,8 +118,7 @@ if verificar_senha():
                                  index=eng_nomes.index(st.session_state["eng_ativo"]))
         st.session_state["eng_ativo"] = eng_ativo
         
-        # HTML para a foto circular
-        # O Streamlit carregará 'Thiago.jpg' se estiver na mesma pasta no GitHub
+        # HTML para a foto circular - Agora carregando via URL direta
         st.markdown(f"""
             <div class="sidebar-container">
                 <img src="{EQUIPE[eng_ativo]['foto']}" class="profile-pic">
@@ -129,7 +129,7 @@ if verificar_senha():
         st.markdown("---")
         st.header("🏢 Unidades PRODIN")
         
-        # Lista dinâmica de Campi baseada no Engenheiro
+        # Lista dinâmica de Campi baseada no mapa da PRODIN
         lista_campi_dinamica = sorted(EQUIPE[eng_ativo]["campi"])
         campus_sel = st.selectbox("Selecione o Campus:", lista_campi_dinamica)
         
@@ -251,7 +251,7 @@ if verificar_senha():
                 pdf.ln(15)
                 pdf.set_font("Arial", 'B', 10)
                 pdf.cell(0, 10, "________________________________________________", ln=True, align='C')
-                # Assinatura com você e Roger
+                # Desenvolvedores: Thiago e Roger Santana
                 pdf.cell(0, 5, "Thiago Messias Carvalho Soares | Roger Ramos Santana", ln=True, align='C')
                 pdf.set_font("Arial", '', 9)
                 pdf.cell(0, 5, "Engenheiros Civis - Equipe PRODIN IFBA", ln=True, align='C')
