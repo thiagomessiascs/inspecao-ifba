@@ -46,7 +46,7 @@ EQUIPE = {
     }
 }
 
-# --- 2. FUNÇÕES TÉCNICAS (UPLOAD E PDF) ---
+# --- 2. FUNÇÕES TÉCNICAS ---
 def upload_para_nuvem(foto_arquivo):
     API_KEY = "6908985532588b58a18370126786a347"
     url = "https://api.imgbb.com/1/upload"
@@ -63,18 +63,14 @@ def gerar_pdf_final(df_filtro, campus, eng_nome):
     pdf.set_font("Arial", 'B', 14)
     pdf.cell(190, 10, f"RELATÓRIO DE INSPEÇÃO PREDIAL - IFBA {campus.upper()}", ln=True, align='C')
     pdf.ln(5)
-    
     for i, row in df_filtro.iterrows():
         y_pos = pdf.get_y()
         if y_pos > 200: pdf.add_page(); y_pos = pdf.get_y()
         pdf.set_fill_color(240, 240, 240)
         pdf.set_font("Arial", 'B', 11)
         pdf.cell(190, 8, f"Item {i+1}: {row['Edificacao']}", ln=True, fill=True)
-        pdf.set_font("Arial", 'B', 9)
-        pdf.cell(110, 6, f"Ambiente: {row['Ambiente']}", ln=True)
         pdf.set_font("Arial", '', 9)
-        pdf.multi_cell(110, 5, f"Descrição: {row['Descricao']}")
-        pdf.multi_cell(110, 5, f"Soluções: {row['Solucoes']}")
+        pdf.multi_cell(110, 5, f"Ambiente: {row['Ambiente']}\nDescrição: {row['Descricao']}\nSoluções: {row['Solucoes']}")
         if row['Link_Foto']:
             try:
                 img_data = requests.get(row['Link_Foto']).content
@@ -83,22 +79,25 @@ def gerar_pdf_final(df_filtro, campus, eng_nome):
         pdf.set_y(max(pdf.get_y(), y_pos + 60))
         pdf.ln(5)
         pdf.cell(190, 0, '', 'T', ln=True)
-
     pdf.ln(10)
-    pdf.set_font("Arial", 'B', 10)
     pdf.cell(0, 10, "________________________________________________", ln=True, align='C')
     pdf.cell(0, 5, eng_nome, ln=True, align='C')
     return pdf.output(dest='S').encode('latin-1', 'ignore')
 
-# --- 3. INTERFACE (LAYOUT CLÁSSICO) ---
+# --- 3. INTERFACE COM LAYOUT ORIGINAL ---
 st.set_page_config(page_title="Inspeção Predial IFBA", layout="wide")
 
-# Estilos do Layout Anterior
 st.markdown("""
     <style>
-    .main { background-color: #f5f5f5; }
-    .stButton>button { width: 100%; background-color: #2e7d32; color: white; border-radius: 5px; }
-    .profile-pic { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #2e7d32; margin-bottom: 10px; }
+    .main { background-color: #ffffff; }
+    .stButton>button { width: 100%; background-color: #2e7d32; color: white; border-radius: 5px; height: 3em; }
+    .profile-pic { width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 4px solid #2e7d32; display: block; margin: 0 auto; }
+    /* CSS PARA O QUADRADINHO VERDE DO TÍTULO */
+    .title-card { 
+        border: 2px solid #2e7d32; border-left: 15px solid #2e7d32; 
+        padding: 25px; border-radius: 15px; background-color: #fcfcfc;
+        display: flex; align-items: center; margin-bottom: 30px;
+    }
     .sidebar-content { text-align: center; }
     </style>
     """, unsafe_allow_html=True)
@@ -117,32 +116,33 @@ else:
     conn = st.connection("gsheets", type=GSheetsConnection)
     df_base = conn.read(ttl="0")
 
-    # BARRA LATERAL (Vistoriador e Unidades)
     with st.sidebar:
         st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
         st.subheader("🕵️ Vistoriador")
-        eng_ativo = st.selectbox("Selecione o Engenheiro:", list(EQUIPE.keys()))
+        eng_ativo = st.selectbox("Engenheiro:", list(EQUIPE.keys()), label_visibility="collapsed")
         st.markdown(f'<img src="{EQUIPE[eng_ativo]["foto"]}" class="profile-pic">', unsafe_allow_html=True)
-        st.info(f"**{eng_ativo}**")
+        # NOME ABAIXO DA FOTO REMOVIDO CONFORME SOLICITADO
         
-        st.markdown("---")
+        st.markdown("<br><br>", unsafe_allow_html=True)
         st.subheader("🏢 Unidades PRODIN")
-        campus_sel = st.selectbox("Selecione o Campus:", sorted(EQUIPE[eng_ativo]["campi"]))
+        campus_sel = st.selectbox("Campus:", sorted(EQUIPE[eng_ativo]["campi"]), label_visibility="collapsed")
         
         if st.button("Sair"): st.session_state["autenticado"] = False; st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # BANNER CENTRAL
-    col_img, col_txt = st.columns([1, 3])
-    with col_img:
-        st.image("https://github.com/thiagomessiascs/inspecao-ifba/blob/main/IFBA_Logo.png?raw=true", width=150)
-    with col_txt:
-        st.title("Sistema de Inspeção Predial - IFBA")
-        st.write("Engenharia, Manutenção e Vistorias Técnicas")
+    # BANNER CENTRAL COM QUADRADO VERDE
+    st.markdown(f"""
+        <div class="title-card">
+            <img src="https://github.com/thiagomessiascs/inspecao-ifba/blob/main/IFBA_Logo.png?raw=true" width="100" style="margin-right:30px;">
+            <div>
+                <h1 style="color:#1e4620; margin:0;">Sistema de Inspeção Predial - IFBA</h1>
+                <p style="color:#666; margin:0; font-size:1.1em;">Engenharia, Manutenção e Vistorias Técnicas</p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
-    st.markdown(f"### 📝 Registro de Patologia: {campus_sel}")
+    st.markdown(f"### 📝 Registro: {campus_sel}")
     
-    # FORMULÁRIO DE REGISTRO
     with st.form("form_vistoria", clear_on_submit=True):
         c1, c2 = st.columns(2)
         with c1:
@@ -158,37 +158,22 @@ else:
             t = st.select_slider("Tendência", options=[1,2,3,4,5], value=3)
             score = g * u * t
             status = "CRÍTICA" if score > 60 else "MÉDIA" if score > 20 else "BAIXA"
-            st.success(f"Prioridade Atual: {status} (Score: {score})")
+            st.info(f"Prioridade: {status} (Score: {score})")
 
-        if st.form_submit_button("💾 Salvar Inspeção"):
+        if st.form_submit_button("💾 Salvar Registro"):
             if bloco and desc:
                 link_foto = upload_para_nuvem(foto_cel) if foto_cel else ""
-                nova_linha = {
-                    "Data": datetime.now().strftime("%d/%m/%Y"),
-                    "Engenheiro": eng_ativo,
-                    "Campus": campus_sel,
-                    "Edificacao": bloco,
-                    "Ambiente": local,
-                    "Descricao": desc,
-                    "Solucoes": solu,
-                    "Link_Foto": link_foto,
-                    "Score_GUT": score,
-                    "Status": status
-                }
+                nova_linha = {"Data": datetime.now().strftime("%d/%m/%Y"), "Engenheiro": eng_ativo, "Campus": campus_sel, "Edificacao": bloco, "Ambiente": local, "Descricao": desc, "Solucoes": solu, "Link_Foto": link_foto, "Score_GUT": score, "Status": status}
                 df_up = pd.concat([df_base, pd.DataFrame([nova_linha])], ignore_index=True)
                 conn.update(data=df_up)
-                st.balloons()
-                st.success("Patologia registrada com sucesso!")
-            else: st.error("Por favor, preencha a Edificação e a Descrição.")
+                st.success("Salvo com sucesso!")
+            else: st.error("Preencha os campos obrigatórios.")
 
-    # ÁREA DE FECHAMENTO (PDF)
     st.markdown("---")
     df_campus = df_base[df_base['Campus'] == campus_sel]
     if not df_campus.empty:
-        st.subheader(f"📋 Resumo do Campus: {campus_sel}")
+        st.subheader(f"📋 Resumo: {campus_sel}")
         st.dataframe(df_campus[["Edificacao", "Ambiente", "Status"]], use_container_width=True)
-        
-        if st.button(f"🏁 Finalizar e Gerar PDF de {campus_sel}"):
-            with st.spinner("Compilando relatório com fotos..."):
-                pdf_data = gerar_pdf_final(df_campus, campus_sel, EQUIPE[eng_ativo]["nome_completo"])
-                st.download_button("📥 Baixar Relatório Final", pdf_data, f"Relatorio_{campus_sel}.pdf", "application/pdf")
+        if st.button(f"🏁 Gerar Relatório PDF de {campus_sel}"):
+            pdf_data = gerar_pdf_final(df_campus, campus_sel, EQUIPE[eng_ativo]["nome_completo"])
+            st.download_button("📥 Baixar PDF", pdf_data, f"Relatorio_{campus_sel}.pdf")
