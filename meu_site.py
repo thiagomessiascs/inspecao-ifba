@@ -1,7 +1,6 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
-import plotly.express as px
 from fpdf import FPDF
 from datetime import datetime
 from PIL import Image
@@ -11,7 +10,7 @@ import io
 EQUIPE = {
     "Eng. Thiago": {
         "campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"],
-        "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+        "foto": "Thiago.jpg"  # Nome exato do arquivo que você subiu no GitHub
     },
     "Eng. Roger": {
         "campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"],
@@ -62,9 +61,28 @@ def verificar_senha():
 if verificar_senha():
     st.set_page_config(page_title="Inspeção Predial IFBA", layout="wide", page_icon="🏗️")
 
+    # --- CSS PARA FOTO CIRCULAR ---
+    st.markdown("""
+        <style>
+        .profile-pic {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #2e7d32;
+            margin-bottom: 10px;
+        }
+        .sidebar-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     # --- CABEÇALHO ---
     url_construcao = "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?q=80&w=300&auto=format&fit=crop"
-    
     st.markdown(
         f"""
         <div style="display: flex; align-items: center; background-color: #fcfcfc; padding: 25px; border-radius: 20px; border-left: 12px solid #2e7d32; border-bottom: 2px solid #e0e0e0; margin-bottom: 30px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);">
@@ -87,21 +105,26 @@ if verificar_senha():
     except:
         df_base = pd.DataFrame()
 
-    # --- 3. BARRA LATERAL (NOVA ESTRUTURA) ---
+    # --- BARRA LATERAL ---
     with st.sidebar:
-        st.header("👨‍🏫 Seleção de Vistoriador")
+        st.header("👨‍🏫 Vistoriador")
         
-        # Seleção do Engenheiro via Selectbox ou Radio para economizar espaço lateral
         eng_nomes = list(EQUIPE.keys())
         if "eng_ativo" not in st.session_state:
             st.session_state["eng_ativo"] = "Eng. Thiago"
             
-        eng_ativo = st.selectbox("Engenheiro Responsável:", eng_nomes, 
+        eng_ativo = st.selectbox("Selecione o Engenheiro:", eng_nomes, 
                                  index=eng_nomes.index(st.session_state["eng_ativo"]))
         st.session_state["eng_ativo"] = eng_ativo
         
-        # Exibe a foto do engenheiro selecionado na lateral
-        st.image(EQUIPE[eng_ativo]["foto"], width=80)
+        # HTML para a foto circular
+        # O Streamlit carregará 'Thiago.jpg' se estiver na mesma pasta no GitHub
+        st.markdown(f"""
+            <div class="sidebar-container">
+                <img src="{EQUIPE[eng_ativo]['foto']}" class="profile-pic">
+                <p style="font-weight: bold; color: #2e7d32;">{eng_ativo}</p>
+            </div>
+        """, unsafe_allow_html=True)
         
         st.markdown("---")
         st.header("🏢 Unidades PRODIN")
@@ -120,7 +143,7 @@ if verificar_senha():
         
         if not df_campus.empty:
             opcoes_edit = ["Nova Inspeção"] + [f"ID {i} - {row['Edificacao']}" for i, row in df_campus.iterrows()]
-            selecao = st.selectbox("Selecione para editar:", opcoes_edit)
+            selecao = st.selectbox("Editar Registro:", opcoes_edit)
             if selecao != "Nova Inspeção":
                 edit_mode = True
                 index_to_edit = int(selecao.split(" ")[1])
@@ -130,10 +153,10 @@ if verificar_senha():
             st.session_state["autenticado"] = False
             st.rerun()
 
-    # --- 4. FORMULÁRIO PRINCIPAL ---
+    # --- FORMULÁRIO PRINCIPAL ---
     with st.form("form_vistoria", clear_on_submit=not edit_mode):
-        st.subheader(f"📝 Registro de Vistoria: {campus_sel}")
-        st.info(f"Vistoriador Ativo: **{eng_ativo}**")
+        st.subheader(f"📝 Registro: {campus_sel}")
+        st.write(f"Responsável Técnico: **{eng_ativo}**")
         
         c1, c2 = st.columns(2)
         with c1:
@@ -147,9 +170,9 @@ if verificar_senha():
             
         with c2:
             st.write("**📸 Evidência Fotográfica**")
-            foto_upload = st.file_uploader("Arraste a foto", type=["jpg", "png", "jpeg"])
+            foto_upload = st.file_uploader("Upload da foto", type=["jpg", "png", "jpeg"])
             if foto_upload:
-                st.image(Image.open(foto_upload), caption="Visualização da Patologia", use_container_width=True)
+                st.image(Image.open(foto_upload), caption="Prévia da Ocorrência", use_container_width=True)
             
             st.write("**Avaliação GUT**")
             g = st.slider("Gravidade", 1, 5, 3)
@@ -157,9 +180,9 @@ if verificar_senha():
             t = st.slider("Tendência", 1, 5, 3)
             score = g * u * t
             status = "CRÍTICA" if score > 60 else "MÉDIA" if score > 20 else "BAIXA"
-            st.metric("Prioridade de Intervenção", status, f"Score: {score}")
+            st.metric("Prioridade", status, f"Score: {score}")
 
-        if st.form_submit_button("💾 Salvar Registro Técnio"):
+        if st.form_submit_button("💾 Salvar Inspeção"):
             nova_linha = {
                 "Data": datetime.now().strftime("%d/%m/%Y %H:%M"),
                 "Engenheiro": eng_ativo,
@@ -178,22 +201,22 @@ if verificar_senha():
             else:
                 df_base = pd.concat([df_base, pd.DataFrame([nova_linha])], ignore_index=True)
             conn.update(data=df_base)
-            st.success(f"Inspeção em {campus_sel} salva com sucesso!")
+            st.success("Dados registrados no Google Sheets!")
             st.rerun()
 
-    # --- 5. HISTÓRICO E PDF ---
+    # --- HISTÓRICO E PDF ---
     if not df_base.empty:
         df_filtrado = df_base[df_base['Campus'] == campus_sel]
         if not df_filtrado.empty:
             st.markdown("---")
-            st.subheader(f"📋 Histórico de Ocorrências - {campus_sel}")
+            st.subheader(f"📋 Ocorrências - {campus_sel}")
             st.dataframe(df_filtrado.drop(columns=["Campus"]), use_container_width=True)
 
             def gerar_pdf(dados, campus):
                 pdf = FPDF()
                 pdf.add_page()
                 pdf.set_font("Arial", 'B', 16)
-                pdf.cell(190, 10, f"RELATÓRIO TÉCNICO DE INSPEÇÃO - IFBA {campus.upper()}", ln=True, align='C')
+                pdf.cell(190, 10, f"RELATÓRIO DE INSPEÇÃO PREDIAL - IFBA {campus.upper()}", ln=True, align='C')
                 pdf.ln(10)
                 
                 for i, row in dados.iterrows():
@@ -212,6 +235,11 @@ if verificar_senha():
                     pdf.multi_cell(0, 5, f"{row['Descricao']}")
                     
                     pdf.set_font("Arial", 'B', 10)
+                    pdf.multi_cell(0, 7, "Soluções Sugeridas:")
+                    pdf.set_font("Arial", '', 10)
+                    pdf.multi_cell(0, 5, f"{row['Solucoes']}")
+                    
+                    pdf.set_font("Arial", 'B', 10)
                     cor_status = (211, 47, 47) if row['Status'] == "CRÍTICA" else (218, 165, 32)
                     pdf.set_text_color(*cor_status)
                     pdf.cell(0, 7, f"PRIORIDADE GUT: {row['Status']} (Score: {row['Score_GUT']})", ln=True)
@@ -223,6 +251,7 @@ if verificar_senha():
                 pdf.ln(15)
                 pdf.set_font("Arial", 'B', 10)
                 pdf.cell(0, 10, "________________________________________________", ln=True, align='C')
+                # Assinatura com você e Roger
                 pdf.cell(0, 5, "Thiago Messias Carvalho Soares | Roger Ramos Santana", ln=True, align='C')
                 pdf.set_font("Arial", '', 9)
                 pdf.cell(0, 5, "Engenheiros Civis - Equipe PRODIN IFBA", ln=True, align='C')
@@ -231,7 +260,7 @@ if verificar_senha():
 
             pdf_data = gerar_pdf(df_filtrado, campus_sel)
             st.download_button(
-                label="📄 Exportar Relatório em PDF",
+                label="📄 Baixar Relatório PDF",
                 data=pdf_data,
                 file_name=f"Relatorio_{campus_sel}.pdf",
                 mime="application/pdf",
