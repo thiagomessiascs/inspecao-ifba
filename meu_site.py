@@ -7,7 +7,7 @@ from PIL import Image
 import io
 
 # --- 1. CONFIGURAÇÃO DA EQUIPE (PRODIN) ---
-# Nomes completos configurados para a assinatura automática
+# Nomes completos para assinatura e links das fotos de perfil
 EQUIPE = {
     "Eng. Thiago": {
         "nome_completo": "Thiago Messias Carvalho Soares",
@@ -46,17 +46,88 @@ EQUIPE = {
     }
 }
 
-# 2. Sistema de Autenticação
+# --- 2. FUNÇÃO GERADORA DE PDF (FOTOS À DIREITA + ASSINATURA) ---
+def gerar_pdf(dados, campus, eng_selecionado, foto_arquivo=None):
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    
+    # Cabeçalho do Relatório
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(190, 10, f"RELATÓRIO DE INSPEÇÃO PREDIAL - IFBA {campus.upper()}", ln=True, align='C')
+    pdf.ln(5)
+    
+    for i, row in dados.iterrows():
+        y_inicial = pdf.get_y()
+        
+        # Título do Item com Fundo Cinza
+        pdf.set_fill_color(240, 240, 240)
+        pdf.set_font("Arial", 'B', 11)
+        pdf.cell(190, 8, f"Item {i+1}: {row['Edificacao']}", ln=True, fill=True)
+        
+        # Coluna de Texto (Esquerda - Largura 110mm)
+        pdf.set_font("Arial", 'B', 9)
+        pdf.cell(30, 6, "Ambiente:", 0)
+        pdf.set_font("Arial", '', 9)
+        pdf.cell(80, 6, f"{row['Ambiente']}", ln=True)
+        
+        pdf.set_font("Arial", 'B', 9)
+        pdf.cell(110, 6, "Descrição da Patologia:", ln=True)
+        pdf.set_font("Arial", '', 9)
+        pdf.multi_cell(110, 5, f"{row['Descricao']}")
+        
+        pdf.set_font("Arial", 'B', 9)
+        pdf.cell(110, 6, "Soluções Sugeridas:", ln=True)
+        pdf.set_font("Arial", '', 9)
+        pdf.multi_cell(110, 5, f"{row['Solucoes']}")
+        
+        # Status GUT com Cor
+        pdf.set_font("Arial", 'B', 9)
+        cor = (211, 47, 47) if row['Status'] == "CRÍTICA" else (218, 165, 32)
+        pdf.set_text_color(*cor)
+        pdf.cell(110, 7, f"PRIORIDADE GUT: {row['Status']} (Score: {row['Score_GUT']})", ln=True)
+        pdf.set_text_color(0, 0, 0)
+        
+        # --- INSERÇÃO DA FOTO À DIREITA ---
+        if foto_arquivo:
+            try:
+                img = Image.open(foto_arquivo)
+                if img.mode in ("RGBA", "P"): img = img.convert("RGB")
+                img_temp = io.BytesIO()
+                img.save(img_temp, format='JPEG')
+                # Posiciona a foto: x=125, y=y_inicial+10, largura=60mm
+                pdf.image(img_temp, x=125, y=y_inicial + 10, w=60)
+            except:
+                pass
+
+        # Garante que o próximo item não encavale na foto
+        pdf.set_y(max(pdf.get_y(), y_inicial + 55))
+        pdf.ln(5)
+        pdf.cell(190, 0, '', 'T', ln=True) # Linha divisória
+        pdf.ln(5)
+
+    # Assinatura do Engenheiro Responsável
+    if pdf.get_y() > 240: pdf.add_page()
+    pdf.ln(10)
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(0, 10, "________________________________________________", ln=True, align='C')
+    nome_full = EQUIPE[eng_selecionado]["nome_completo"]
+    pdf.cell(0, 5, nome_full, ln=True, align='C')
+    pdf.set_font("Arial", '', 9)
+    pdf.cell(0, 5, "Engenheiro Civil - Equipe PRODIN IFBA", ln=True, align='C')
+    
+    return pdf.output(dest='S').encode('latin-1', 'ignore')
+
+# --- 3. SISTEMA DE LOGIN ---
 def verificar_senha():
     if "autenticado" not in st.session_state:
         st.session_state["autenticado"] = False
     if not st.session_state["autenticado"]:
-        st.set_page_config(page_title="Login - Inspeção IFBA", page_icon="🔐")
+        st.set_page_config(page_title="Acesso - Inspeção IFBA", page_icon="🔐")
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            st.title("🔐 Acesso Restrito")
-            st.subheader("Sistema de Inspeção IFBA")
-            senha = st.text_input("Digite a senha de acesso:", type="password")
+            st.title("🔐 Login")
+            senha = st.text_input("Senha de Acesso:", type="password")
             if st.button("Entrar"):
                 if senha == "IFBA2026":
                     st.session_state["autenticado"] = True
@@ -66,223 +137,109 @@ def verificar_senha():
         return False
     return True
 
+# --- 4. APLICATIVO PRINCIPAL ---
 if verificar_senha():
-    st.set_page_config(page_title="Inspeção Predial IFBA", layout="wide", page_icon="🏗️")
+    st.set_page_config(page_title="Inspeção Predial IFBA", layout="wide")
 
-    # --- CSS PARA FOTO CIRCULAR ---
+    # Estilos CSS (Perfil Circular e Cabeçalho)
     st.markdown("""
         <style>
-        .profile-pic {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid #2e7d32;
-            margin-bottom: 10px;
-        }
-        .sidebar-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-        }
+        .profile-pic { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #2e7d32; }
+        .sidebar-content { display: flex; flex-direction: column; align-items: center; text-align: center; }
         </style>
     """, unsafe_allow_html=True)
 
-    # --- CABEÇALHO ---
-    url_construcao = "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?q=80&w=300&auto=format&fit=crop"
-    st.markdown(
-        f"""
-        <div style="display: flex; align-items: center; background-color: #fcfcfc; padding: 25px; border-radius: 20px; border-left: 12px solid #2e7d32; border-bottom: 2px solid #e0e0e0; margin-bottom: 30px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);">
-            <div style="margin-right: 25px;">
-                <img src="{url_construcao}" style="width: 180px; height: 120px; border-radius: 12px; object-fit: cover; border: 1px solid #ddd;">
-            </div>
-            <div style="flex-grow: 1;">
-                <h1 style="margin: 0; color: #1e4620; font-family: sans-serif; font-size: 38px;">Sistema de Inspeção Predial - IFBA</h1>
-                <p style="margin: 0; color: #666; font-size: 18px; font-weight: 300;">Engenharia, Manutenção e Vistorias Técnicas</p>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
+    # Conexão com Google Sheets
     conn = st.connection("gsheets", type=GSheetsConnection)
     try:
         df_base = conn.read(ttl="0")
-        df_base = df_base.reset_index(drop=True)
     except:
         df_base = pd.DataFrame()
 
-    # --- BARRA LATERAL ---
+    # Barra Lateral
     with st.sidebar:
         st.header("👨‍🏫 Vistoriador")
-        
         eng_nomes = list(EQUIPE.keys())
-        if "eng_ativo" not in st.session_state:
-            st.session_state["eng_ativo"] = "Eng. Thiago"
-            
-        eng_ativo = st.selectbox("Selecione o Engenheiro:", eng_nomes, 
-                                 index=eng_nomes.index(st.session_state["eng_ativo"]))
-        st.session_state["eng_ativo"] = eng_ativo
+        eng_ativo = st.selectbox("Selecione seu nome:", eng_nomes)
         
         st.markdown(f"""
-            <div class="sidebar-container">
+            <div class="sidebar-content">
                 <img src="{EQUIPE[eng_ativo]['foto']}" class="profile-pic">
-                <p style="font-weight: bold; color: #2e7d32;">{eng_ativo}</p>
+                <p style="font-weight: bold; margin-top: 10px;">{eng_ativo}</p>
             </div>
         """, unsafe_allow_html=True)
         
         st.markdown("---")
-        st.header("🏢 Unidades PRODIN")
-        lista_campi_dinamica = sorted(EQUIPE[eng_ativo]["campi"])
-        campus_sel = st.selectbox("Selecione o Campus:", lista_campi_dinamica)
+        lista_campi = sorted(EQUIPE[eng_ativo]["campi"])
+        campus_sel = st.selectbox("Campus da Vistoria:", lista_campi)
         
-        st.markdown("---")
-        st.subheader("🛠️ Opções")
-        
-        df_campus = df_base[df_base['Campus'] == campus_sel] if not df_base.empty else pd.DataFrame()
-        edit_mode = False
-        index_to_edit = None
-        dados_edit = None
-        
-        if not df_campus.empty:
-            opcoes_edit = ["Nova Inspeção"] + [f"ID {i} - {row['Edificacao']}" for i, row in df_campus.iterrows()]
-            selecao = st.selectbox("Editar Registro:", opcoes_edit)
-            if selecao != "Nova Inspeção":
-                edit_mode = True
-                index_to_edit = int(selecao.split(" ")[1])
-                dados_edit = df_base.iloc[index_to_edit]
-
-        if st.button("🚪 Sair do Sistema"):
+        if st.button("🚪 Sair"):
             st.session_state["autenticado"] = False
             st.rerun()
 
-    # --- FORMULÁRIO PRINCIPAL ---
-    with st.form("form_vistoria", clear_on_submit=not edit_mode):
-        st.subheader(f"📝 Registro: {campus_sel}")
-        st.write(f"Responsável Técnico: **{eng_ativo}**")
+    # Formulário de Entrada
+    st.markdown(f"## 🏗️ Sistema de Vistoria - {campus_sel}")
+    
+    with st.form("form_inspeção", clear_on_submit=True):
+        col_form_1, col_form_2 = st.columns(2)
         
-        c1, c2 = st.columns(2)
-        with c1:
-            edificacao = st.text_input("Edificação/Bloco:", value=dados_edit['Edificacao'] if edit_mode else "", key="edif")
-            disciplina_lista = ["Alvenaria", "Estrutura", "Elétrica", "Hidráulica", "Pintura", "Cobertura", "Drenagem", "Incêndio"]
-            idx_disc = disciplina_lista.index(dados_edit['Disciplina']) if edit_mode and dados_edit['Disciplina'] in disciplina_lista else 0
-            disciplina = st.selectbox("Disciplina:", disciplina_lista, index=idx_disc)
-            ambiente = st.text_input("Ambiente/Local:", value=dados_edit['Ambiente'] if edit_mode else "")
-            descricao = st.text_area("Descrição da Patologia:", value=dados_edit['Descricao'] if edit_mode else "")
-            solucoes = st.text_area("Soluções Sugeridas:", value=dados_edit['Solucoes'] if edit_mode else "")
+        with col_form_1:
+            edificacao = st.text_input("Edificação / Bloco:")
+            disciplina = st.selectbox("Disciplina:", ["Alvenaria", "Estrutura", "Elétrica", "Hidráulica", "Pintura", "Cobertura", "Drenagem", "Incêndio"])
+            ambiente = st.text_input("Ambiente Específico:")
+            descricao = st.text_area("Descrição da Ocorrência:")
+            solucoes = st.text_area("Sugestão de Solução:")
+
+        with col_form_2:
+            st.write("**📸 Registro Fotográfico**")
+            # Ao usar no celular, o botão abaixo aciona a câmera
+            foto_vistoria = st.file_uploader("Tirar foto ou anexar", type=["jpg", "jpeg", "png"])
+            if foto_vistoria:
+                st.image(foto_vistoria, width=300)
             
-        with c2:
-            st.write("**📸 Evidência Fotográfica**")
-            foto_upload = st.file_uploader("Upload da foto", type=["jpg", "png", "jpeg"])
-            if foto_upload:
-                st.image(Image.open(foto_upload), caption="Prévia da Ocorrência", use_container_width=True)
+            st.write("**📊 Matriz GUT (Gravidade, Urgência, Tendência)**")
+            g = st.select_slider("Gravidade (O quão grave é?)", options=[1,2,3,4,5], value=3)
+            u = st.select_slider("Urgência (Pode esperar?)", options=[1,2,3,4,5], value=3)
+            t = st.select_slider("Tendência (Vai piorar rápido?)", options=[1,2,3,4,5], value=3)
             
-            st.write("**Avaliação GUT**")
-            g = st.slider("Gravidade", 1, 5, 3)
-            u = st.slider("Urgência", 1, 5, 3)
-            t = st.slider("Tendência", 1, 5, 3)
             score = g * u * t
             status = "CRÍTICA" if score > 60 else "MÉDIA" if score > 20 else "BAIXA"
-            st.metric("Prioridade", status, f"Score: {score}")
+            st.info(f"Prioridade Atual: **{status}** (Score: {score})")
 
-        if st.form_submit_button("💾 Salvar Inspeção"):
-            nova_linha = {
-                "Data": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                "Engenheiro": eng_ativo,
-                "Campus": campus_sel,
-                "Edificacao": edificacao,
-                "Disciplina": disciplina,
-                "Ambiente": ambiente,
-                "Descricao": descricao,
-                "Solucoes": solucoes,
-                "Foto": "Anexada" if foto_upload else (dados_edit['Foto'] if edit_mode else "Sem foto"),
-                "Score_GUT": score,
-                "Status": status
-            }
-            if edit_mode:
-                df_base.iloc[index_to_edit] = nova_linha
+        btn_salvar = st.form_submit_button("💾 Salvar Inspeção e Gerar PDF")
+
+        if btn_salvar:
+            if edificacao and descricao:
+                nova_data = {
+                    "Data": datetime.now().strftime("%d/%m/%Y"),
+                    "Engenheiro": eng_ativo,
+                    "Campus": campus_sel,
+                    "Edificacao": edificacao,
+                    "Disciplina": disciplina,
+                    "Ambiente": ambiente,
+                    "Descricao": descricao,
+                    "Solucoes": solucoes,
+                    "Score_GUT": score,
+                    "Status": status
+                }
+                
+                # 1. Enviar para a Planilha
+                df_updated = pd.concat([df_base, pd.DataFrame([nova_data])], ignore_index=True)
+                conn.update(data=df_updated)
+                
+                # 2. Gerar PDF apenas deste item para download imediato
+                pdf_output = gerar_pdf(pd.DataFrame([nova_data]), campus_sel, eng_ativo, foto_vistoria)
+                
+                st.success("✅ Dados salvos com sucesso!")
+                st.download_button(
+                    label="📄 Baixar PDF desta Inspeção",
+                    data=pdf_output,
+                    file_name=f"Vistoria_{campus_sel}_{edificacao}.pdf",
+                    mime="application/pdf"
+                )
             else:
-                df_base = pd.concat([df_base, pd.DataFrame([nova_linha])], ignore_index=True)
-            conn.update(data=df_base)
-            st.success("Dados registrados no Google Sheets!")
-            st.rerun()
+                st.error("Por favor, preencha a Edificação e a Descrição.")
 
-    # --- HISTÓRICO E PDF ---
-    if not df_base.empty:
-        df_filtrado = df_base[df_base['Campus'] == campus_sel]
-        if not df_filtrado.empty:
-            st.markdown("---")
-            st.subheader(f"📋 Ocorrências - {campus_sel}")
-            st.dataframe(df_filtrado.drop(columns=["Campus"]), use_container_width=True)
-
-            def gerar_pdf(dados, campus, eng_selecionado):
-                pdf = FPDF()
-                pdf.add_page()
-                pdf.set_font("Arial", 'B', 16)
-                pdf.cell(190, 10, f"RELATÓRIO DE INSPEÇÃO PREDIAL - IFBA {campus.upper()}", ln=True, align='C')
-                pdf.ln(10)
-                
-                for i, row in dados.iterrows():
-                    pdf.set_fill_color(240, 240, 240)
-                    pdf.set_font("Arial", 'B', 12)
-                    pdf.cell(190, 8, f"Item {i+1}: {row['Edificacao']}", ln=True, fill=True)
-                    
-                    pdf.set_font("Arial", 'B', 10)
-                    pdf.cell(40, 7, "Local/Ambiente:", 0)
-                    pdf.set_font("Arial", '', 10)
-                    pdf.cell(0, 7, f"{row['Ambiente']}", ln=True)
-                    
-                    pdf.set_font("Arial", 'B', 10)
-                    pdf.multi_cell(0, 7, "Descrição da Patologia:")
-                    pdf.set_font("Arial", '', 10)
-                    pdf.multi_cell(0, 5, f"{row['Descricao']}")
-                    
-                    pdf.set_font("Arial", 'B', 10)
-                    pdf.multi_cell(0, 7, "Soluções Sugeridas:")
-                    pdf.set_font("Arial", '', 10)
-                    pdf.multi_cell(0, 5, f"{row['Solucoes']}")
-                    
-                    pdf.set_font("Arial", 'B', 10)
-                    cor_status = (211, 47, 47) if row['Status'] == "CRÍTICA" else (218, 165, 32)
-                    pdf.set_text_color(*cor_status)
-                    pdf.cell(0, 7, f"PRIORIDADE GUT: {row['Status']} (Score: {row['Score_GUT']})", ln=True)
-                    pdf.set_text_color(0, 0, 0)
-                    pdf.ln(5)
-                    pdf.cell(190, 0, '', 'T', ln=True)
-                    pdf.ln(5)
-
-                # Assinatura dinâmica com o nome completo do dicionário
-                pdf.ln(15)
-                pdf.set_font("Arial", 'B', 10)
-                pdf.cell(0, 10, "________________________________________________", ln=True, align='C')
-                
-                nome_assinatura = EQUIPE[eng_selecionado]["nome_completo"]
-                pdf.cell(0, 5, nome_assinatura, ln=True, align='C')
-                
-                pdf.set_font("Arial", '', 9)
-                pdf.cell(0, 5, "Engenheiro Civil - Equipe PRODIN IFBA", ln=True, align='C')
-                
-                return pdf.output(dest='S').encode('latin-1', 'ignore')
-
-            # Chamada da função passando o engenheiro ativo
-            pdf_data = gerar_pdf(df_filtrado, campus_sel, eng_ativo)
-            st.download_button(
-                label="📄 Baixar Relatório PDF",
-                data=pdf_data,
-                file_name=f"Relatorio_{campus_sel}.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
-
-    # --- RODAPÉ ---
+    # Rodapé Profissional
     st.markdown("---")
-    st.markdown(
-        """
-        <div style="background-color: #f1f3f6; padding: 20px; border-radius: 15px; text-align: center;">
-            <p style="margin: 0; color: #1e4620; font-weight: bold;">Inspeção Predial IFBA - Sistema PRODIN</p>
-            <p style="margin: 5px 0 0 0; color: #555; font-size: 13px;">Desenvolvido por <b>Thiago Messias Carvalho Soares</b> e <b>Roger Ramos Santana</b></p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    st.caption(f"Logado como: {EQUIPE[eng_ativo]['nome_completo']} | PRODIN - IFBA 2026")
