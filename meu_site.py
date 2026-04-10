@@ -56,13 +56,14 @@ def upload_para_nuvem(foto_arquivo):
         return res.json()['data']['url'] if res.status_code == 200 else ""
     except: return ""
 
-def gerar_pdf_final(df_filtro, campus, eng_nome):
+def gerar_pdf_final(df_filtro, campus):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
     pdf.set_font("Arial", 'B', 14)
     pdf.cell(190, 10, f"RELATÓRIO DE INSPEÇÃO PREDIAL - IFBA {campus.upper()}", ln=True, align='C')
     pdf.ln(5)
+    
     for i, row in df_filtro.iterrows():
         y_pos = pdf.get_y()
         if y_pos > 200: pdf.add_page(); y_pos = pdf.get_y()
@@ -70,7 +71,7 @@ def gerar_pdf_final(df_filtro, campus, eng_nome):
         pdf.set_font("Arial", 'B', 11)
         pdf.cell(190, 8, f"Item {i+1}: {row['Edificacao']}", ln=True, fill=True)
         pdf.set_font("Arial", '', 9)
-        pdf.multi_cell(110, 5, f"Ambiente: {row['Ambiente']}\nDescrição: {row['Descricao']}\nSolucoes: {row['Solucoes']}")
+        pdf.multi_cell(110, 5, f"Ambiente: {row['Ambiente']}\nDescrição: {row['Descricao']}\nSoluções: {row['Solucoes']}\nPRIORIDADE GUT: {row['Status']} (Score: {row['Score_GUT']})")
         if row['Link_Foto']:
             try:
                 img_data = requests.get(row['Link_Foto']).content
@@ -79,12 +80,18 @@ def gerar_pdf_final(df_filtro, campus, eng_nome):
         pdf.set_y(max(pdf.get_y(), y_pos + 60))
         pdf.ln(5)
         pdf.cell(190, 0, '', 'T', ln=True)
-    pdf.ln(10)
-    pdf.cell(0, 10, "________________________________________________", ln=True, align='C')
-    pdf.cell(0, 5, eng_nome, ln=True, align='C')
+
+    # ASSINATURA CONJUNTA: THIAGO E ROGER
+    pdf.ln(20)
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(0, 10, "__________________________________________________________________", ln=True, align='C')
+    pdf.cell(0, 5, "Thiago Messias Carvalho Soares | Roger Ramos Santana", ln=True, align='C')
+    pdf.set_font("Arial", '', 9)
+    pdf.cell(0, 5, "Engenheiros Civis - Equipe PRODIN IFBA", ln=True, align='C')
+    
     return pdf.output(dest='S').encode('latin-1', 'ignore')
 
-# --- 3. INTERFACE COM LAYOUT ORIGINAL RECUPERADO ---
+# --- 3. INTERFACE ---
 st.set_page_config(page_title="Inspeção Predial IFBA", layout="wide")
 
 st.markdown("""
@@ -92,18 +99,10 @@ st.markdown("""
     .main { background-color: #ffffff; }
     .stButton>button { width: 100%; background-color: #2e7d32; color: white; border-radius: 5px; height: 3em; }
     .profile-pic { width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 4px solid #2e7d32; display: block; margin: 0 auto; }
-    
-    /* CSS PARA O QUADRADINHO VERDE DO TÍTULO */
     .title-card { 
-        border: 2px solid #2e7d32; 
-        border-left: 15px solid #2e7d32; /* Borda grossa lateral original */
-        padding: 30px; 
-        border-radius: 15px; 
-        background-color: #fcfcfc;
-        display: flex; 
-        align-items: center; 
-        justify-content: center; /* Centraliza o conteúdo dentro da caixa */
-        margin-bottom: 30px;
+        border: 2px solid #2e7d32; border-left: 15px solid #2e7d32; 
+        padding: 30px; border-radius: 15px; background-color: #fcfcfc;
+        display: flex; align-items: center; justify-content: center; margin-bottom: 30px;
     }
     .sidebar-content { text-align: center; }
     </style>
@@ -136,18 +135,19 @@ else:
         if st.button("Sair"): st.session_state["autenticado"] = False; st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # BANNER CENTRAL COM QUADRADO VERDE RECUPERADO E ÍCONE DE EDIFICAÇÃO
+    # TÍTULO COM CAIXA VERDE E ÍCONE
     st.markdown(f"""
         <div class="title-card">
             <span style="font-size: 4em; color: #1e4620; margin-right: 25px;">🏢</span>
             <div>
-                <h1 style="color:#1e4620; margin:0; font-size: 2.5em;">Sistema de Inspeção Predial - IFBA</h1>
-                <p style="color:#666; margin:0; font-size:1.2em;">Engenharia, Manutenção e Vistorias Técnicas</p>
+                <h1 style="color:#1e4620; margin:0; font-size: 2.3em;">Sistema de Inspeção Predial - IFBA</h1>
+                <p style="color:#666; margin:0; font-size:1.1em;">Engenharia, Manutenção e Vistorias Técnicas</p>
+                <small style="color:#999;">Desenvolvido por: Thiago Messias & Roger Santana</small>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    st.markdown(f"### 📝 Registro: {campus_sel}")
+    st.markdown(f"### 📝 Registro de Patologia: {campus_sel}")
     
     with st.form("form_vistoria", clear_on_submit=True):
         c1, c2 = st.columns(2)
@@ -172,14 +172,14 @@ else:
                 nova_linha = {"Data": datetime.now().strftime("%d/%m/%Y"), "Engenheiro": eng_ativo, "Campus": campus_sel, "Edificacao": bloco, "Ambiente": local, "Descricao": desc, "Solucoes": solu, "Link_Foto": link_foto, "Score_GUT": score, "Status": status}
                 df_up = pd.concat([df_base, pd.DataFrame([nova_linha])], ignore_index=True)
                 conn.update(data=df_up)
-                st.success("Salvo com sucesso!")
+                st.success("Inspeção salva com sucesso!")
             else: st.error("Preencha os campos obrigatórios.")
 
     st.markdown("---")
     df_campus = df_base[df_base['Campus'] == campus_sel]
     if not df_campus.empty:
-        st.subheader(f"📋 Resumo: {campus_sel}")
+        st.subheader(f"📋 Resumo da Vistoria: {campus_sel}")
         st.dataframe(df_campus[["Edificacao", "Ambiente", "Status"]], use_container_width=True)
-        if st.button(f"🏁 Gerar Relatório PDF de {campus_sel}"):
-            pdf_data = gerar_pdf_final(df_campus, campus_sel, EQUIPE[eng_ativo]["nome_completo"])
-            st.download_button("📥 Baixar PDF", pdf_data, f"Relatorio_{campus_sel}.pdf")
+        if st.button(f"🏁 Finalizar e Gerar Relatório PDF"):
+            pdf_data = gerar_pdf_final(df_campus, campus_sel)
+            st.download_button("📥 Baixar Relatório (Thiago & Roger)", pdf_data, f"Relatorio_{campus_sel}.pdf")
