@@ -6,8 +6,41 @@ from fpdf import FPDF
 from datetime import datetime
 from PIL import Image
 import io
+import tempfile
 
-# 1. Sistema de Autenticação (Senha: IFBA2026)
+# --- 1. CONFIGURAÇÃO DA EQUIPE (DADOS DO MAPA PRODIN) ---
+EQUIPE = {
+    "Eng. Thiago": {
+        "campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"],
+        "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+    },
+    "Eng. Roger": {
+        "campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"],
+        "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+    },
+    "Eng. Laís": {
+        "campi": ["Barreiras", "Jaguaquara", "Jequié"],
+        "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135823.png"
+    },
+    "Eng. Larissa": {
+        "campi": ["Campo Formoso", "Juazeiro", "Casa Nova", "Ilhéus", "Ubaitaba", "Camacã"],
+        "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135823.png"
+    },
+    "Eng. Marcelo": {
+        "campi": ["Brumado", "Vitória da Conquista"],
+        "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+    },
+    "Eng. Fenelon": {
+        "campi": ["Camaçari", "Lauro de Freitas", "Santo Antônio de Jesus", "Simões Filho", "Valença"],
+        "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+    },
+    "Eng. do Local": {
+        "campi": ["Salvador", "Reitoria - Salvador", "Polo de Inovação", "Salinas da Margarida", "São Desidério"],
+        "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+    }
+}
+
+# 2. Sistema de Autenticação (Senha: IFBA2026)
 def verificar_senha():
     if "autenticado" not in st.session_state:
         st.session_state["autenticado"] = False
@@ -55,20 +88,29 @@ if verificar_senha():
     except:
         df_base = pd.DataFrame()
 
+    # --- SELEÇÃO DE ENGENHEIRO ---
+    st.subheader("👨‍🏫 Selecione o Engenheiro Vistoriador:")
+    cols_eng = st.columns(len(EQUIPE))
+    
+    if "eng_ativo" not in st.session_state:
+        st.session_state["eng_ativo"] = "Eng. Thiago"
+
+    for i, nome in enumerate(EQUIPE.keys()):
+        with cols_eng[i]:
+            if st.button(nome, key=f"btn_{nome}", use_container_width=True):
+                st.session_state["eng_ativo"] = nome
+                st.rerun()
+            st.image(EQUIPE[nome]["foto"], width=70) #
+
+    eng_ativo = st.session_state["eng_ativo"]
+    st.markdown(f"### 📍 Unidades de Responsabilidade: **{eng_ativo}**")
+    
+    lista_campi_dinamica = sorted(EQUIPE[eng_ativo]["campi"]) #
+    campus_sel = st.selectbox("Selecione o Campus para inspeção:", lista_campi_dinamica)
+
     # --- SIDEBAR ---
     with st.sidebar:
-        st.header("🏢 Unidades IFBA")
-        lista_campi = sorted([
-            "Salvador", "Feira de Santana", "Barreiras", "Brumado", "Camaçari", 
-            "Euclides da Cunha", "Eunápolis", "Ilhéus", "Irecê", "Jacobina", 
-            "Jequié", "Juazeiro", "Paulo Afonso", "Porto Seguro", "Santo Amaro", 
-            "Santo Antônio de Jesus", "Seabra", "Simões Filho", "Valença", 
-            "Vitória da Conquista", "Ubaitaba", "Jaguarari", "Salinas da Margarida"
-        ])
-        campus_sel = st.selectbox("Selecione o Campus:", lista_campi)
-        
-        st.markdown("---")
-        st.subheader("🛠️ Modo de Edição")
+        st.header("🛠️ Opções")
         df_campus = df_base[df_base['Campus'] == campus_sel] if not df_base.empty else pd.DataFrame()
         
         edit_mode = False
@@ -89,7 +131,7 @@ if verificar_senha():
 
     # --- FORMULÁRIO ---
     with st.form("form_vistoria", clear_on_submit=not edit_mode):
-        st.subheader(f"📝 Registro de Vistoria: {campus_sel}")
+        st.subheader(f"📝 Registro: {campus_sel} (Vistoriador: {eng_ativo})")
         c1, c2 = st.columns(2)
         with c1:
             edificacao = st.text_input("Edificação/Bloco:", value=dados_edit['Edificacao'] if edit_mode else "", key="edif")
@@ -117,13 +159,14 @@ if verificar_senha():
         if st.form_submit_button("💾 Salvar Registro"):
             nova_linha = {
                 "Data": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                "Engenheiro": eng_ativo,
                 "Campus": campus_sel,
                 "Edificacao": edificacao,
                 "Disciplina": disciplina,
                 "Ambiente": ambiente,
                 "Descricao": descricao,
                 "Solucoes": solucoes,
-                "Foto": "Anexada" if foto_upload else (dados_edit['Foto'] if edit_mode else "Sem foto"),
+                "Foto": "Anexada" if foto_upload else (dados_edit['Foto'] if edit_mode else "Sem foto"), #
                 "Score_GUT": score,
                 "Status": status
             }
@@ -143,7 +186,6 @@ if verificar_senha():
             st.subheader(f"📋 Histórico e Relatórios - {campus_sel}")
             st.dataframe(df_filtrado.drop(columns=["Campus"]), use_container_width=True)
 
-            # FUNÇÃO PARA GERAR PDF
             def gerar_pdf(dados, campus):
                 pdf = FPDF()
                 pdf.add_page()
@@ -154,7 +196,7 @@ if verificar_senha():
                 for i, row in dados.iterrows():
                     pdf.set_fill_color(240, 240, 240)
                     pdf.set_font("Arial", 'B', 12)
-                    pdf.cell(190, 8, f"Item {i+1}: {row['Edificacao']} - {row['Disciplina']}", ln=True, fill=True)
+                    pdf.cell(190, 8, f"Item {i+1}: {row['Edificacao']} - Resp: {row.get('Engenheiro', 'N/A')}", ln=True, fill=True) #
                     
                     pdf.set_font("Arial", 'B', 10)
                     pdf.cell(40, 7, "Local/Ambiente:", 0)
@@ -183,29 +225,28 @@ if verificar_senha():
                 pdf.ln(15)
                 pdf.set_font("Arial", 'B', 10)
                 pdf.cell(0, 10, "________________________________________________", ln=True, align='C')
-                pdf.cell(0, 5, "Thiago Messias Carvalho Soares", ln=True, align='C')
+                pdf.cell(0, 5, "Thiago Messias Carvalho Soares | Roger Ramos Santana", ln=True, align='C')
                 pdf.set_font("Arial", '', 9)
-                pdf.cell(0, 5, "Engenheiro Civil - IFBA", ln=True, align='C')
+                pdf.cell(0, 5, "Engenheiros Civis - Equipe PRODIN IFBA", ln=True, align='C')
                 
                 return pdf.output(dest='S').encode('latin-1', 'ignore')
 
-            # Botão de Impressão
             pdf_data = gerar_pdf(df_filtrado, campus_sel)
             st.download_button(
                 label="📄 Imprimir Relatório PDF",
                 data=pdf_data,
-                file_name=f"Relatorio_Inspeção_{campus_sel}_{datetime.now().strftime('%d_%m_%Y')}.pdf",
+                file_name=f"Relatorio_{campus_sel}_{datetime.now().strftime('%d_%m_%Y')}.pdf",
                 mime="application/pdf",
                 use_container_width=True
             )
 
-    # --- RODAPÉ ---
+    # --- RODAPÉ COM NOMES DOS DESENVOLVEDORES ---
     st.markdown("---")
     st.markdown(
         """
         <div style="background-color: #f1f3f6; padding: 20px; border-radius: 15px; text-align: center;">
-            <p style="margin: 0; color: #1e4620; font-weight: bold;">Inspeção Predial IFBA</p>
-            <p style="margin: 5px 0 0 0; color: #555; font-size: 13px;">Desenvolvido por <b>Thiago Messias Carvalho Soares</b></p>
+            <p style="margin: 0; color: #1e4620; font-weight: bold;">Inspeção Predial IFBA - Sistema PRODIN</p>
+            <p style="margin: 5px 0 0 0; color: #555; font-size: 13px;">Desenvolvido por <b>Thiago Messias Carvalho Soares</b> e <b>Roger Ramos Santana</b></p>
         </div>
         """,
         unsafe_allow_html=True
