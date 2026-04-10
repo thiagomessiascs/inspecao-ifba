@@ -81,7 +81,7 @@ def gerar_pdf_final(df_filtro, campus):
         pdf.ln(5)
         pdf.cell(190, 0, '', 'T', ln=True)
 
-    # ASSINATURA CONJUNTA: THIAGO E ROGER
+    # ASSINATURA CONJUNTA NO PDF
     pdf.ln(20)
     pdf.set_font("Arial", 'B', 10)
     pdf.cell(0, 10, "__________________________________________________________________", ln=True, align='C')
@@ -104,6 +104,7 @@ st.markdown("""
         padding: 30px; border-radius: 15px; background-color: #fcfcfc;
         display: flex; align-items: center; justify-content: center; margin-bottom: 30px;
     }
+    .footer { text-align: center; color: #999; font-size: 0.8em; margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; }
     .sidebar-content { text-align: center; }
     </style>
     """, unsafe_allow_html=True)
@@ -127,22 +128,19 @@ else:
         st.subheader("🕵️ Vistoriador")
         eng_ativo = st.selectbox("Engenheiro:", list(EQUIPE.keys()), label_visibility="collapsed")
         st.markdown(f'<img src="{EQUIPE[eng_ativo]["foto"]}" class="profile-pic">', unsafe_allow_html=True)
-        
         st.markdown("<br><br>", unsafe_allow_html=True)
         st.subheader("🏢 Unidades PRODIN")
         campus_sel = st.selectbox("Campus:", sorted(EQUIPE[eng_ativo]["campi"]), label_visibility="collapsed")
-        
         if st.button("Sair"): st.session_state["autenticado"] = False; st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # TÍTULO COM CAIXA VERDE E ÍCONE
+    # TÍTULO LIMPO COM CAIXA VERDE E ÍCONE
     st.markdown(f"""
         <div class="title-card">
             <span style="font-size: 4em; color: #1e4620; margin-right: 25px;">🏢</span>
             <div>
                 <h1 style="color:#1e4620; margin:0; font-size: 2.3em;">Sistema de Inspeção Predial - IFBA</h1>
                 <p style="color:#666; margin:0; font-size:1.1em;">Engenharia, Manutenção e Vistorias Técnicas</p>
-                <small style="color:#999;">Desenvolvido por: Thiago Messias & Roger Santana</small>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -172,7 +170,7 @@ else:
                 nova_linha = {"Data": datetime.now().strftime("%d/%m/%Y"), "Engenheiro": eng_ativo, "Campus": campus_sel, "Edificacao": bloco, "Ambiente": local, "Descricao": desc, "Solucoes": solu, "Link_Foto": link_foto, "Score_GUT": score, "Status": status}
                 df_up = pd.concat([df_base, pd.DataFrame([nova_linha])], ignore_index=True)
                 conn.update(data=df_up)
-                st.success("Inspeção salva com sucesso!")
+                st.success("Salvo com sucesso!")
             else: st.error("Preencha os campos obrigatórios.")
 
     st.markdown("---")
@@ -182,4 +180,12 @@ else:
         st.dataframe(df_campus[["Edificacao", "Ambiente", "Status"]], use_container_width=True)
         if st.button(f"🏁 Finalizar e Gerar Relatório PDF"):
             pdf_data = gerar_pdf_final(df_campus, campus_sel)
-            st.download_button("📥 Baixar Relatório (Thiago & Roger)", pdf_data, f"Relatorio_{campus_sel}.pdf")
+            st.download_button("📥 Baixar Relatório", pdf_data, f"Relatorio_{campus_sel}.pdf")
+
+    # RODAPÉ COM OS DESENVOLVEDORES
+    st.markdown("""
+        <div class="footer">
+            Desenvolvido por: Thiago Messias Carvalho Soares | Roger Ramos Santana<br>
+            Equipe PRODIN - IFBA 2026
+        </div>
+    """, unsafe_allow_html=True)
