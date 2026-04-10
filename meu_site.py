@@ -23,25 +23,26 @@ DADOS_TECNICOS = {
 
 st.set_page_config(page_title="Sistema PRODIN - IFBA", layout="wide")
 
-# --- 2. FUNÇÕES DE SUPORTE ---
+# --- 2. LÓGICA DE EDIÇÃO BLINDADA (DIALOG) ---
 @st.dialog("✏️ Editar Registro")
 def editar_registro(index, row_data, conn, df_full):
-    st.write(f"Editando item da unidade: **{row_data['Edificacao']}**")
-    new_edif = st.selectbox("Edificação:", ["Pavilhão administrativo", "Pavilhão acadêmico", "Refeitório", "Anexo", "Biblioteca", "Muro"], index=["Pavilhão administrativo", "Pavilhão acadêmico", "Refeitório", "Anexo", "Biblioteca", "Muro"].index(row_data['Edificacao']))
+    st.write(f"Editando item: **{row_data['Edificacao']}**")
+    new_edif = st.selectbox("Edificação:", ["Pavilhão administrativo", "Pavilhão acadêmico", "Refeitório", "Anexo", "Biblioteca", "Muro"], 
+                            index=["Pavilhão administrativo", "Pavilhão acadêmico", "Refeitório", "Anexo", "Biblioteca", "Muro"].index(row_data['Edificacao']))
     new_disc = st.selectbox("Disciplina:", list(DADOS_TECNICOS.keys()), index=list(DADOS_TECNICOS.keys()).index(row_data['Disciplina']))
     new_desc = st.text_area("Descrição:", value=row_data['Descricao'])
     new_sol = st.text_area("Solução:", value=row_data['Solucoes'])
     
-    if st.button("Confirmar Alterações"):
+    if st.button("Salvar Alterações"):
         df_full.loc[index, "Edificacao"] = new_edif
         df_full.loc[index, "Disciplina"] = new_disc
         df_full.loc[index, "Descricao"] = new_desc
         df_full.loc[index, "Solucoes"] = new_sol
         conn.update(data=df_full)
-        st.success("Alterado com sucesso!")
+        st.success("Registro atualizado!")
         st.rerun()
 
-# --- 3. LOGIN E INTERFACE ---
+# --- 3. LOGIN E BARRA LATERAL AJUSTADA ---
 if "login" not in st.session_state: st.session_state.login = False
 if not st.session_state.login:
     st.title("🔐 Login PRODIN")
@@ -52,55 +53,65 @@ else:
     df_base = conn.read(ttl="0")
 
     with st.sidebar:
-        st.subheader("🕵️ Vistoriador")
-        eng_sel = st.selectbox("Nome:", list(EQUIPE.keys()))
-        st.image(EQUIPE[eng_sel]["foto"], width=100)
+        st.markdown("<h3 style='text-align: center;'>🕵️ Vistoriador</h3>", unsafe_allow_html=True)
+        eng_sel = st.selectbox("Selecione seu nome:", list(EQUIPE.keys()))
+        
+        # CENTRALIZAÇÃO DA FOTO
+        col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
+        with col_img2:
+            st.image(EQUIPE[eng_sel]["foto"], width=120)
+        
+        st.markdown("---")
         campi_perm = sorted(EQUIPE[eng_sel]["campi"])
-        campus_sel = st.selectbox("Campus:", campi_perm)
+        campus_sel = st.selectbox("Campus Atual:", campi_perm)
+        
         if st.button("Sair"): st.session_state.login = False; st.rerun()
 
-    st.markdown(f'<h1 style="color:#1e4620;">🏢 Inspeção Predial - IFBA</h1>', unsafe_allow_html=True)
+    # --- 4. FORMULÁRIO DE CADASTRO ---
+    st.markdown(f'<h1 style="color:#1e4620;">🏢 Inspeção Predial - {campus_sel}</h1>', unsafe_allow_html=True)
     
-    # --- 4. FORMULÁRIO DE CADASTRO (LIMPO) ---
-    with st.expander("➕ Novo Registro de Inspeção", expanded=True):
+    with st.expander("➕ Iniciar Novo Registro", expanded=True):
         c1, c2 = st.columns(2)
         with c1:
-            edif = st.selectbox("Edificação:", ["Pavilhão administrativo", "Pavilhão acadêmico", "Refeitório", "Anexo", "Biblioteca", "Muro"], key="reg_edif")
-            amb = st.selectbox("Ambiente:", ["Sala de aula", "Laboratório", "Sanitário", "Corredor"], key="reg_amb")
-            disc = st.selectbox("Disciplina:", list(DADOS_TECNICOS.keys()), key="reg_disc") #
+            edif = st.selectbox("Edificação/Bloco:", ["Pavilhão administrativo", "Pavilhão acadêmico", "Refeitório", "Anexo", "Biblioteca", "Muro"])
+            amb = st.selectbox("Ambiente:", ["Sala de aula", "Laboratório", "Sanitário", "Corredor", "Pátio"])
+            disc = st.selectbox("Disciplina Técnica:", list(DADOS_TECNICOS.keys()))
         with c2:
-            if disc: # Aparece patologia e solução conforme disciplina
-                pat_sug = st.selectbox("Patologias Comuns:", DADOS_TECNICOS[disc]["patologias"])
-                desc = st.text_area("Descrição Detalhada:", value=pat_sug if pat_sug != "Outros" else "")
-                sol_sug = st.selectbox("Soluções Comuns:", DADOS_TECNICOS[disc]["solucoes"])
+            if disc:
+                pat_sug = st.selectbox("Patologias Sugeridas:", DADOS_TECNICOS[disc]["patologias"])
+                desc = st.text_area("Descrição Técnica:", value=pat_sug if pat_sug != "Outros" else "")
+                sol_sug = st.selectbox("Soluções Sugeridas:", DADOS_TECNICOS[disc]["solucoes"])
                 sol = st.text_area("Proposta de Intervenção:", value=sol_sug if sol_sug != "Outros" else "")
         
-        if st.button("💾 Salvar Inspeção"):
-            novo_df = pd.DataFrame([{"Data": datetime.now().strftime("%d/%m/%Y"), "Engenheiro": eng_sel, "Campus": campus_sel, "Edificacao": edif, "Ambiente": amb, "Disciplina": disc, "Descricao": desc, "Solucoes": sol}])
-            df_final = pd.concat([df_base, novo_df], ignore_index=True)
-            conn.update(data=df_final)
-            st.success("Salvo!")
+        if st.button("💾 Finalizar e Salvar"):
+            novo_item = {
+                "Data": datetime.now().strftime("%d/%m/%Y"), "Engenheiro": eng_sel, "Campus": campus_sel,
+                "Edificacao": edif, "Ambiente": amb, "Disciplina": disc, "Descricao": desc, "Solucoes": sol
+            }
+            df_atualizado = pd.concat([df_base, pd.DataFrame([novo_item])], ignore_index=True)
+            conn.update(data=df_atualizado)
+            st.success("Dados enviados para a planilha!")
             st.rerun()
 
-    # --- 5. HISTÓRICO COM GERENCIAMENTO (SEM ERROS) ---
+    # --- 5. HISTÓRICO E GESTÃO ---
     st.markdown("---")
-    st.subheader(f"📋 Registros em {campus_sel}")
-    df_view = df_base[df_base['Campus'] == campus_sel].copy()
+    st.subheader(f"📋 Histórico de Vistorias: {campus_sel}")
+    df_filtrado = df_base[df_base['Campus'] == campus_sel].copy()
     
-    if not df_view.empty:
-        st.dataframe(df_view[["Edificacao", "Ambiente", "Disciplina", "Descricao"]].tail(10), use_container_width=True)
+    if not df_filtrado.empty:
+        st.dataframe(df_filtrado[["Edificacao", "Ambiente", "Disciplina", "Descricao"]].tail(10), use_container_width=True)
         
-        st.write("**Ações sobre o Registro:**")
-        idx_to_manage = st.selectbox("Selecione o item (pelo ID à esquerda):", df_view.index)
+        st.write("**Gerenciar Registros:**")
+        idx_selecionado = st.selectbox("Escolha o ID para ação:", df_filtrado.index)
         
-        col_edit, col_del, _ = st.columns([1, 1, 3])
-        with col_edit:
+        btn_edit, btn_del, _ = st.columns([1, 1, 3])
+        with btn_edit:
             if st.button("✏️ Editar Item"):
-                editar_registro(idx_to_manage, df_base.loc[idx_to_manage], conn, df_base) # CHAMA O MODAL ISOLADO
-        with col_del:
+                editar_registro(idx_selecionado, df_base.loc[idx_selecionado], conn, df_base) #
+        with btn_del:
             if st.button("🗑️ Excluir"):
-                df_base = df_base.drop(idx_to_manage)
+                df_base = df_base.drop(idx_selecionado)
                 conn.update(data=df_base)
                 st.rerun()
 
-    st.markdown(f'<div style="text-align:center; color:#888; font-size:12px; margin-top:30px;">PRODIN 2026</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align:center; color:#888; font-size:12px; margin-top:30px;">PRODIN - IFBA | Engenharia e Manutenção</div>', unsafe_allow_html=True)
