@@ -3,7 +3,6 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from fpdf import FPDF
 from datetime import datetime
-from PIL import Image
 import io
 import requests
 import base64
@@ -47,118 +46,124 @@ EQUIPE = {
     }
 }
 
-# --- 2. FUNÇÃO DE UPLOAD DE FOTO (ImgBB) ---
+# --- 2. FUNÇÕES TÉCNICAS (UPLOAD E PDF) ---
 def upload_para_nuvem(foto_arquivo):
-    # Chave de API para o servidor de imagens (Grátis)
     API_KEY = "6908985532588b58a18370126786a347"
     url = "https://api.imgbb.com/1/upload"
     try:
         encoded_image = base64.b64encode(foto_arquivo.read()).decode('utf-8')
-        payload = {"key": API_KEY, "image": encoded_image}
-        res = requests.post(url, data=payload)
-        if res.status_code == 200:
-            return res.json()['data']['url']
-    except Exception as e:
-        st.error(f"Erro no upload da imagem: {e}")
-    return ""
+        res = requests.post(url, data={"key": API_KEY, "image": encoded_image})
+        return res.json()['data']['url'] if res.status_code == 200 else ""
+    except: return ""
 
-# --- 3. GERADOR DE PDF ---
 def gerar_pdf_final(df_filtro, campus, eng_nome):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
-    
     pdf.set_font("Arial", 'B', 14)
-    pdf.cell(190, 10, f"RELATÓRIO DE INSPEÇÃO - IFBA {campus.upper()}", ln=True, align='C')
+    pdf.cell(190, 10, f"RELATÓRIO DE INSPEÇÃO PREDIAL - IFBA {campus.upper()}", ln=True, align='C')
     pdf.ln(5)
     
     for i, row in df_filtro.iterrows():
         y_pos = pdf.get_y()
         if y_pos > 200: pdf.add_page(); y_pos = pdf.get_y()
-        
         pdf.set_fill_color(240, 240, 240)
         pdf.set_font("Arial", 'B', 11)
         pdf.cell(190, 8, f"Item {i+1}: {row['Edificacao']}", ln=True, fill=True)
-        
         pdf.set_font("Arial", 'B', 9)
         pdf.cell(110, 6, f"Ambiente: {row['Ambiente']}", ln=True)
         pdf.set_font("Arial", '', 9)
         pdf.multi_cell(110, 5, f"Descrição: {row['Descricao']}")
         pdf.multi_cell(110, 5, f"Soluções: {row['Solucoes']}")
-        
-        # Insere a foto pela URL salva
         if row['Link_Foto']:
             try:
                 img_data = requests.get(row['Link_Foto']).content
                 pdf.image(io.BytesIO(img_data), x=125, y=y_pos + 10, w=60)
             except: pass
-            
         pdf.set_y(max(pdf.get_y(), y_pos + 60))
         pdf.ln(5)
         pdf.cell(190, 0, '', 'T', ln=True)
 
-    # Assinatura
     pdf.ln(10)
     pdf.set_font("Arial", 'B', 10)
     pdf.cell(0, 10, "________________________________________________", ln=True, align='C')
     pdf.cell(0, 5, eng_nome, ln=True, align='C')
     return pdf.output(dest='S').encode('latin-1', 'ignore')
 
-# --- 4. APLICATIVO ---
-st.set_page_config(page_title="Inspeção IFBA", layout="wide")
+# --- 3. INTERFACE (LAYOUT CLÁSSICO) ---
+st.set_page_config(page_title="Inspeção Predial IFBA", layout="wide")
+
+# Estilos do Layout Anterior
+st.markdown("""
+    <style>
+    .main { background-color: #f5f5f5; }
+    .stButton>button { width: 100%; background-color: #2e7d32; color: white; border-radius: 5px; }
+    .profile-pic { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #2e7d32; margin-bottom: 10px; }
+    .sidebar-content { text-align: center; }
+    </style>
+    """, unsafe_allow_html=True)
 
 if "autenticado" not in st.session_state: st.session_state["autenticado"] = False
 
 if not st.session_state["autenticado"]:
-    # Tela de Login
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
-        st.title("🔐 Acesso Restrito")
-        senha = st.text_input("Senha da PRODIN:", type="password")
-        if st.button("Entrar"):
+        st.title("🔐 Login PRODIN")
+        senha = st.text_input("Senha:", type="password")
+        if st.button("Acessar Sistema"):
             if senha == "IFBA2026": st.session_state["autenticado"] = True; st.rerun()
-            else: st.error("Senha inválida")
+            else: st.error("Senha incorreta")
 else:
-    # Interface Principal
     conn = st.connection("gsheets", type=GSheetsConnection)
     df_base = conn.read(ttl="0")
 
+    # BARRA LATERAL (Vistoriador e Unidades)
     with st.sidebar:
-        st.header("⚙️ Configuração")
-        eng_ativo = st.selectbox("Quem está vistoriando?", list(EQUIPE.keys()))
-        campus_sel = st.selectbox("Campus alvo:", sorted(EQUIPE[eng_ativo]["campi"]))
-        st.image(EQUIPE[eng_ativo]["foto"], width=100)
+        st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
+        st.subheader("🕵️ Vistoriador")
+        eng_ativo = st.selectbox("Selecione o Engenheiro:", list(EQUIPE.keys()))
+        st.markdown(f'<img src="{EQUIPE[eng_ativo]["foto"]}" class="profile-pic">', unsafe_allow_html=True)
+        st.info(f"**{eng_ativo}**")
+        
+        st.markdown("---")
+        st.subheader("🏢 Unidades PRODIN")
+        campus_sel = st.selectbox("Selecione o Campus:", sorted(EQUIPE[eng_ativo]["campi"]))
+        
         if st.button("Sair"): st.session_state["autenticado"] = False; st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.title(f"🏗️ Vistoria: {campus_sel}")
+    # BANNER CENTRAL
+    col_img, col_txt = st.columns([1, 3])
+    with col_img:
+        st.image("https://github.com/thiagomessiascs/inspecao-ifba/blob/main/IFBA_Logo.png?raw=true", width=150)
+    with col_txt:
+        st.title("Sistema de Inspeção Predial - IFBA")
+        st.write("Engenharia, Manutenção e Vistorias Técnicas")
+
+    st.markdown(f"### 📝 Registro de Patologia: {campus_sel}")
     
-    with st.form("vistoria_form", clear_on_submit=True):
-        col_a, col_b = st.columns(2)
-        with col_a:
+    # FORMULÁRIO DE REGISTRO
+    with st.form("form_vistoria", clear_on_submit=True):
+        c1, c2 = st.columns(2)
+        with c1:
             bloco = st.text_input("Edificação/Bloco:")
             local = st.text_input("Ambiente:")
             desc = st.text_area("Descrição da Patologia:")
             solu = st.text_area("Sugestão de Solução:")
-        with col_b:
-            # ESSA LINHA ABAIXO ABRE A CÂMERA NO CELULAR
-            foto_cel = st.file_uploader("📸 Tirar Foto Agora", type=["jpg", "png", "jpeg"])
-            
+        with c2:
+            foto_cel = st.file_uploader("📸 Evidência Fotográfica (Câmera)", type=["jpg", "png", "jpeg"])
             st.write("**Avaliação GUT**")
             g = st.select_slider("Gravidade", options=[1,2,3,4,5], value=3)
             u = st.select_slider("Urgência", options=[1,2,3,4,5], value=3)
             t = st.select_slider("Tendência", options=[1,2,3,4,5], value=3)
             score = g * u * t
             status = "CRÍTICA" if score > 60 else "MÉDIA" if score > 20 else "BAIXA"
-            st.info(f"Prioridade: {status}")
+            st.success(f"Prioridade Atual: {status} (Score: {score})")
 
-        if st.form_submit_button("💾 Salvar Registro e Foto"):
+        if st.form_submit_button("💾 Salvar Inspeção"):
             if bloco and desc:
-                link_foto = ""
-                if foto_cel:
-                    with st.spinner("Enviando foto para a nuvem..."):
-                        link_foto = upload_para_nuvem(foto_cel)
-                
-                novo_dado = {
+                link_foto = upload_para_nuvem(foto_cel) if foto_cel else ""
+                nova_linha = {
                     "Data": datetime.now().strftime("%d/%m/%Y"),
                     "Engenheiro": eng_ativo,
                     "Campus": campus_sel,
@@ -166,22 +171,24 @@ else:
                     "Ambiente": local,
                     "Descricao": desc,
                     "Solucoes": solu,
-                    "Link_Foto": link_foto, # Link eterno
+                    "Link_Foto": link_foto,
                     "Score_GUT": score,
                     "Status": status
                 }
-                df_up = pd.concat([df_base, pd.DataFrame([novo_dado])], ignore_index=True)
+                df_up = pd.concat([df_base, pd.DataFrame([nova_linha])], ignore_index=True)
                 conn.update(data=df_up)
-                st.success("Tudo salvo com segurança!")
-            else: st.error("Preencha Bloco e Descrição!")
+                st.balloons()
+                st.success("Patologia registrada com sucesso!")
+            else: st.error("Por favor, preencha a Edificação e a Descrição.")
 
-    # SEÇÃO DE RELATÓRIO FINAL POR CAMPUS
-    st.write("---")
+    # ÁREA DE FECHAMENTO (PDF)
+    st.markdown("---")
     df_campus = df_base[df_base['Campus'] == campus_sel]
     if not df_campus.empty:
-        st.subheader(f"Resumo do Campus ({len(df_campus)} itens)")
+        st.subheader(f"📋 Resumo do Campus: {campus_sel}")
         st.dataframe(df_campus[["Edificacao", "Ambiente", "Status"]], use_container_width=True)
         
         if st.button(f"🏁 Finalizar e Gerar PDF de {campus_sel}"):
-            pdf_data = gerar_pdf_final(df_campus, campus_sel, EQUIPE[eng_ativo]["nome_completo"])
-            st.download_button("📥 Baixar Relatório Completo", pdf_data, f"Relatorio_{campus_sel}.pdf")
+            with st.spinner("Compilando relatório com fotos..."):
+                pdf_data = gerar_pdf_final(df_campus, campus_sel, EQUIPE[eng_ativo]["nome_completo"])
+                st.download_button("📥 Baixar Relatório Final", pdf_data, f"Relatorio_{campus_sel}.pdf", "application/pdf")
