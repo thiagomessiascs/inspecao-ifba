@@ -10,10 +10,10 @@ from fpdf import FPDF
 # 1. CONFIGURAÇÕES DA PÁGINA
 st.set_page_config(page_title="Sistema PRODIN - IFBA", layout="centered", page_icon="📋")
 
-# 🔗 LINK DA SUA PLANILHA
+# 🔗 LINK DA SUA PLANILHA (Certifique-se de que a coluna 'Foto_Dados' existe)
 URL_PLANILHA = "COLE_AQUI_O_LINK_DA_SUA_PLANILHA"
 
-# 2. LOGIN
+# 2. SISTEMA DE ACESSO
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
@@ -28,7 +28,7 @@ if not st.session_state['autenticado']:
             st.error("Senha incorreta!")
     st.stop()
 
-# 3. DICIONÁRIOS DE APOIO
+# 3. BANCO DE DADOS DE SUGESTÕES (PATOLOGIAS E SOLUÇÕES)
 mapa_engenheiros = {
     "Eng. Thiago": "M", "Eng. Roger": "M", "Eng. Laís": "F", 
     "Eng. Larissa": "F", "Eng. Marcelo": "M", "Eng. Fenelon": "M", "Eng. do Local": "M"
@@ -46,81 +46,88 @@ mapa_campi = {
 
 sugestoes = {
     "Civil": {
-        "Problemas": ["Infiltração em laje", "Fissura em alvenaria", "Piso solto", "Pintura descascando", "Esquadria danificada"],
-        "Soluções": ["Impermeabilização", "Tratamento de fissura", "Troca de revestimento", "Repintura", "Manutenção de esquadria"]
+        "Problemas": ["Infiltração em laje/cobertura", "Fissuras em alvenaria", "Piso quebrado/solto", "Pintura descascando/com bolhas", "Porta/Janela com defeito"],
+        "Soluções": ["Impermeabilização da superfície", "Tratamento de fissuras e reboco", "Substituição do revestimento", "Repintura com fundo preparador", "Manutenção ou troca da esquadria"]
     },
     "Elétrica": {
-        "Problemas": ["Quadro sem identificação", "Fios expostos", "Tomada danificada", "Iluminação inoperante", "Disjuntor desarmando"],
-        "Soluções": ["Identificação de quadro", "Isolamento de fiação", "Troca de tomada", "Troca de lâmpadas", "Revisão de carga"]
+        "Problemas": ["Quadro elétrico sem identificação", "Fios expostos", "Tomada/Interruptor danificado", "Iluminação inoperante", "Disjuntor desarmando"],
+        "Soluções": ["Identificação e diagrama do quadro", "Isolamento e embutimento de fiação", "Troca da tomada/interruptor", "Substituição de lâmpada/reator", "Revisão da carga e substituição do disjuntor"]
     },
     "Hidráulica": {
-        "Problemas": ["Vazamento de tubulação", "Torneira pingando", "Descarga com defeito", "Ralo entupido", "Baixa pressão"],
-        "Soluções": ["Reparo de vazamento", "Troca de reparo", "Manutenção de descarga", "Desentupimento", "Limpeza de caixa d'água"]
+        "Problemas": ["Vazamento em tubulação", "Torneira pingando", "Descarga acoplada sem funcionar", "Ralo entupido", "Falta de pressão de água"],
+        "Soluções": ["Localização e reparo da tubulação", "Troca do reparo da torneira", "Manutenção ou substituição do mecanismo da descarga", "Desentupimento e limpeza do ralo", "Limpeza do castelo d'água ou pressurização"]
     }
 }
 
-# 4. BARRA LATERAL
+# 4. BARRA LATERAL (SIDEBAR)
 st.sidebar.title("⚙️ Painel de Controle")
 eng_sel = st.sidebar.selectbox("Engenheiro Responsável", list(mapa_engenheiros.keys()))
 
-# Avatar dinâmico
+# Avatar Dinâmico
 genero = mapa_engenheiros[eng_sel]
 avatar = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" if genero == "M" else "https://cdn-icons-png.flaticon.com/512/219/219969.png"
 st.sidebar.image(avatar, width=100)
 
 campus_sel = st.sidebar.selectbox("Campus", mapa_campi[eng_sel])
-choice = st.sidebar.radio("Navegação", ["Nova Inspeção", "Histórico / PDF"])
+choice = st.sidebar.radio("Navegação", ["Nova Inspeção", "Histórico / Gerar PDF"])
 
-# 5. CONEXÃO
-conn = st.connection("gsheets", type=GSheetsConnection)
-
-# Função para Gerar PDF
-def gerar_pdf(dados):
+# 5. FUNÇÕES AUXILIARES (PDF)
+def exportar_pdf(dados):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(200, 10, "RELATÓRIO DE INSPEÇÃO PREDIAL - IFBA", ln=True, align='C')
     pdf.ln(10)
     pdf.set_font("Arial", size=12)
-    for key, value in dados.items():
-        if key != "Foto_Dados":
+    for chave, valor in dados.items():
+        if chave != "Foto_Dados":
             pdf.set_font("Arial", 'B', 11)
-            pdf.cell(50, 8, f"{key}:", 0)
+            pdf.cell(50, 8, f"{chave}:", 0)
             pdf.set_font("Arial", size=11)
-            pdf.cell(100, 8, f"{value}", 0, 1)
+            pdf.multi_cell(0, 8, f"{valor}", 0)
     return pdf.output(dest='S').encode('latin-1')
 
-# --- TELA 1: NOVA INSPEÇÃO ---
+# 6. CONEXÃO COM O GOOGLE SHEETS
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+# --- TELA: NOVA INSPEÇÃO ---
 if choice == "Nova Inspeção":
     st.header("📋 Registrar Inspeção")
+    
     with st.form("form_inspecao", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
             edificacao = st.text_input("Edificação / Bloco")
-            disciplina = st.selectbox("Selecione a Disciplina", ["Selecione...", "Civil", "Elétrica", "Hidráulica", "Outros"])
+            disciplina = st.selectbox("Selecione a Disciplina", ["Escolha...", "Civil", "Elétrica", "Hidráulica", "Outros"])
         with col2:
             data_ins = st.date_input("Data", datetime.now())
             ambiente = st.text_input("Ambiente / Sala")
 
-        # Lógica Condicional para Patologias
+        # LOGICA DINÂMICA: Aparece apenas se disciplina for selecionada
         descricao = ""
         solucoes = ""
-        if disciplina != "Selecione...":
-            st.markdown(f"---")
-            prob_list = sugestoes.get(disciplina, {"Problemas": ["Outro"]})["Problemas"]
-            sol_list = sugestoes.get(disciplina, {"Soluções": ["Outro"]})["Soluções"]
+        
+        if disciplina != "Escolha..." and disciplina != "Outros":
+            st.markdown("---")
+            st.subheader(f"🛠️ Opções para {disciplina}")
             
-            prob_sel = st.selectbox("Patologia Identificada:", prob_list)
-            descricao = st.text_area("Detalhamento da Patologia", value=prob_sel)
+            # Botões (Selectbox) de Patologias
+            patologia_sel = st.selectbox("Selecione a Patologia Identificada:", sugestoes[disciplina]["Problemas"])
+            descricao = st.text_area("Descrição detalhada da Não Conformidade:", value=patologia_sel)
             
-            sol_sel = st.selectbox("Solução Sugerida:", sol_list)
-            solucoes = st.text_area("Detalhamento da Solução", value=sol_sel)
+            # Botões (Selectbox) de Soluções
+            solucao_sel = st.selectbox("Selecione a Sugestão de Solução:", sugestoes[disciplina]["Soluções"])
+            solucoes = st.text_area("Sugestão de Solução / Encaminhamento:", value=solucao_sel)
+        
+        elif disciplina == "Outros":
+            descricao = st.text_area("Descreva a Patologia:")
+            solucoes = st.text_area("Sugestão de Solução:")
 
-        foto = st.file_uploader("📸 Foto (Câmera ou Galeria)", type=['jpg', 'jpeg', 'png'])
+        foto = st.file_uploader("📸 Foto (Tirada agora ou Galeria)", type=['jpg', 'jpeg', 'png'])
 
         if st.form_submit_button("✅ Salvar na Planilha"):
-            if disciplina == "Selecione...":
-                st.error("Por favor, selecione uma disciplina.")
+            if disciplina == "Escolha...":
+                st.warning("Por favor, selecione uma disciplina primeiro!")
             else:
                 foto_b64 = ""
                 if foto:
@@ -130,57 +137,56 @@ if choice == "Nova Inspeção":
                     img.save(buf, format="JPEG", quality=70)
                     foto_b64 = base64.b64encode(buf.getvalue()).decode()
 
-                novo = pd.DataFrame([{
+                novo_reg = pd.DataFrame([{
                     "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, "Edificacao": edificacao,
                     "Disciplina": disciplina, "Ambiente": ambiente, "Descricao": descricao, "Solucoes": solucoes,
                     "Engenheiro": eng_sel, "Foto_Dados": foto_b64
                 }])
 
                 try:
-                    df = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
-                    df_f = pd.concat([df, novo], ignore_index=True)
-                    conn.update(spreadsheet=URL_PLANILHA, data=df_f)
-                    st.success("Inspeção salva com sucesso!")
+                    df_atual = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
+                    df_final = pd.concat([df_atual, novo_reg], ignore_index=True)
+                    conn.update(spreadsheet=URL_PLANILHA, data=df_final)
+                    st.success("✅ Registro salvo com sucesso! A foto está na sua galeria e no sistema.")
                 except Exception as e:
                     st.error(f"Erro ao salvar: {e}")
 
-# --- TELA 2: HISTÓRICO E PDF ---
-elif choice == "Histórico / PDF":
+# --- TELA: HISTÓRICO E PDF ---
+elif choice == "Histórico / Gerar PDF":
     st.header("📂 Histórico de Inspeções")
     try:
         df = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
-        st.dataframe(df.drop(columns=['Foto_Dados'], errors='ignore'))
+        st.dataframe(df.drop(columns=['Foto_Dados'], errors='ignore'), use_container_width=True)
         
         if not df.empty:
             st.divider()
-            id_sel = st.selectbox("Escolha um ID para ver detalhes e gerar PDF:", df.index)
+            id_sel = st.selectbox("Selecione um registro para ver detalhes ou baixar PDF:", df.index)
             reg = df.iloc[id_sel]
             
-            col_a, col_b = st.columns(2)
-            with col_a:
+            c1, c2 = st.columns([1, 1])
+            with c1:
                 if reg["Foto_Dados"]:
-                    st.image(base64.b64decode(reg["Foto_Dados"]), use_container_width=True)
-            with col_b:
-                st.write(f"**Campus:** {reg['Campus']}")
-                st.write(f"**Descrição:** {reg['Descricao']}")
-                st.write(f"**Solução:** {reg['Solucoes']}")
+                    st.image(base64.b64decode(reg["Foto_Dados"]), caption="Evidência Fotográfica")
+            with c2:
+                st.write(f"**Engenheiro:** {reg['Engenheiro']}")
+                st.write(f"**Problema:** {reg['Descricao']}")
                 
-                # Botão PDF
-                pdf_bytes = gerar_pdf(reg.to_dict())
-                st.download_button(label="📥 Baixar PDF deste Registro", data=pdf_bytes, 
+                # Gerador de PDF
+                pdf_data = exportar_pdf(reg.to_dict())
+                st.download_button(label="📥 Baixar Relatório em PDF", data=pdf_data, 
                                  file_name=f"Inspecao_{reg['Campus']}_{id_sel}.pdf", mime="application/pdf")
     except Exception as e:
-        st.error(f"Erro ao carregar: {e}")
+        st.error(f"Erro ao carregar dados: {e}")
 
-# --- RODAPÉ CENTRALIZADO ---
-st.markdown("<br><br><br><br>", unsafe_allow_html=True)
+# --- RODAPÉ CENTRALIZADO NA PÁGINA ---
+st.markdown("<br><br><br>", unsafe_allow_html=True)
 st.divider()
 st.markdown(
     """
-    <div style="text-align: center; color: gray; font-size: 0.9em;">
+    <div style="text-align: center; color: #6d6d6d; font-size: 1em; line-height: 1.5;">
         <strong>Desenvolvido por:</strong><br>
         Thiago Messias Carvalho Soares & Roger Ramos Santana<br>
-        <span style="color: #2e7d32; font-weight: bold;">PRODIN - IFBA 2026</span>
+        <strong style="color: #2e7d32;">PRODIN - IFBA 2026</strong>
     </div>
     """,
     unsafe_allow_html=True
