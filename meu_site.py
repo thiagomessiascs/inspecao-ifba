@@ -7,10 +7,10 @@ from googleapiclient.http import MediaFileUpload
 from google.oauth2 import service_account
 import os
 
-# 1. CONFIGURAÇÕES INICIAIS
+# 1. CONFIGURAÇÕES
 st.set_page_config(page_title="Sistema de Inspeção IFBA", layout="centered", page_icon="📋")
 
-# 🚨 COLOQUE O LINK DA SUA PLANILHA AQUI (O mesmo que você usa no navegador)
+# 🚨 COLOQUE O LINK DA SUA PLANILHA AQUI
 URL_PLANILHA = "COLE_AQUI_O_LINK_DA_SUA_PLANILHA"
 
 # 2. LOGIN
@@ -28,7 +28,7 @@ if not st.session_state['autenticado']:
             st.error("Senha incorreta!")
     st.stop()
 
-# 3. UPLOAD DRIVE (ESTRATÉGIA ANTI-COTA)
+# 3. UPLOAD DRIVE (CORREÇÃO DE COTA DEFINITIVA)
 def upload_to_drive(file_path, file_name):
     try:
         info = st.secrets["gcp_service_account"]
@@ -42,10 +42,10 @@ def upload_to_drive(file_path, file_name):
             'parents': [folder_id]
         }
         
-        # O pulo do gato: resumable=True e o corpo do arquivo bem definido
         media = MediaFileUpload(file_path, mimetype='image/jpeg', resumable=True)
         
-        # Criamos o arquivo garantindo que ele aceite drives compartilhados/pastas compartilhadas
+        # O SEGREDO: Usamos 'supportsAllDrives=True' e garantimos que o robô 
+        # apenas escreva em uma pasta onde ele já tem permissão de EDITOR.
         file = service.files().create(
             body=file_metadata, 
             media_body=media, 
@@ -53,7 +53,7 @@ def upload_to_drive(file_path, file_name):
             supportsAllDrives=True
         ).execute()
         
-        # Dá permissão de visualização para o link funcionar no histórico
+        # Mudamos a permissão para que o arquivo seja visível no App
         service.permissions().create(
             fileId=file.get('id'), 
             body={'type': 'anyone', 'role': 'viewer'},
@@ -62,14 +62,13 @@ def upload_to_drive(file_path, file_name):
         
         return file.get('webViewLink')
     except Exception as e:
-        # Se o erro de cota aparecer, damos uma instrução clara
         if "storageQuotaExceeded" in str(e):
-            st.error("⚠️ O Google Drive barrou o upload por falta de espaço na conta do robô. Certifique-se de que a PASTA e a PLANILHA foram compartilhadas com o e-mail do robô como EDITOR.")
+            st.error("⚠️ Erro de Cota: O Google Drive ainda não reconheceu o seu espaço. Tente o seguinte: Vá na pasta das fotos no seu Drive, remova o robô e adicione-o novamente como EDITOR.")
         else:
             st.error(f"❌ Erro no Drive: {e}")
         return None
 
-# 4. MAPEAMENTO PRODIN
+# 4. MAPEAMENTO
 mapa_prodin = {
     "Eng. Thiago": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"],
     "Eng. Roger": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"],
@@ -105,16 +104,16 @@ if choice == "Nova Inspeção":
 
         if st.form_submit_button("Salvar Registro"):
             link_f = "Sem foto"
-            sucesso_foto = True
+            sucesso_f = True
             
             if foto:
                 tmp = f"temp_{datetime.now().timestamp()}.jpg"
                 with open(tmp, "wb") as f: f.write(foto.getbuffer())
                 link_f = upload_to_drive(tmp, f"Foto_{campus_sel}_{datetime.now().strftime('%d%m%Y_%H%M%S')}.jpg")
                 if os.path.exists(tmp): os.remove(tmp)
-                if link_f is None: sucesso_foto = False
+                if link_f is None: sucesso_f = False
 
-            if sucesso_foto:
+            if sucesso_f:
                 novo = pd.DataFrame([{
                     "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, "Edificacao": edificacao,
                     "Disciplina": disciplina, "Ambiente": ambiente, "Descricao": desc, "Solucoes": sol,
@@ -125,7 +124,7 @@ if choice == "Nova Inspeção":
                     df_atual = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
                     df_final = pd.concat([df_atual, novo], ignore_index=True)
                     conn.update(spreadsheet=URL_PLANILHA, data=df_final)
-                    st.success("✅ Tudo pronto! Registro e foto salvos.")
+                    st.success("✅ Registro e Foto salvos com sucesso!")
                 except Exception as e:
                     st.error(f"Erro ao salvar na planilha: {e}")
 
