@@ -27,8 +27,7 @@ if not st.session_state['autenticado']:
             st.error("Senha incorreta!")
     st.stop()
 
-# 3. DICIONÁRIOS DE DADOS PREDEFINIDOS
-# Mapeamento de Engenheiros e Gênero (M: Masculino, F: Feminino)
+# 3. DICIONÁRIOS DE DADOS E AVATARES
 mapa_engenheiros = {
     "Eng. Thiago": "M",
     "Eng. Roger": "M",
@@ -39,7 +38,6 @@ mapa_engenheiros = {
     "Eng. do Local": "M"
 }
 
-# Mapeamento de Engenheiros e seus respectivos Campi
 mapa_campi = {
     "Eng. Thiago": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"],
     "Eng. Roger": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"],
@@ -50,173 +48,109 @@ mapa_campi = {
     "Eng. do Local": ["Salvador", "Reitoria", "Polo de Inovação", "Salinas da Margarida", "São Desidério"]
 }
 
-# Disciplinas predefinidas
-disciplinas = ["Civil", "Elétrica", "Hidráulica", "Segurança contra Incêndio", "Mecânica (Climatização)", "Estrutura"]
-
-# Problemas (Patologias) e Soluções Sugeridas
 sugestoes_inspecao = {
     "Civil": {
-        "Problemas": ["Infiltração em laje/cobertura", "Fissuras em alvenaria", "Piso quebrado/solto", "Pintura descascando/com bolhas", "Porta/Janela com defeito"],
-        "Soluções": ["Impermeabilização da superfície", "Tratamento de fissuras e reboco", "Substituição do revestimento", "Repintura com fundo preparador", "Manutenção ou troca da esquadria"]
+        "Problemas": ["Infiltração em laje/cobertura", "Fissuras em alvenaria", "Piso quebrado/solto", "Pintura descascando", "Esquadria danificada"],
+        "Soluções": ["Impermeabilização", "Tratamento de fissuras e reboco", "Substituição de revestimento", "Repintura", "Manutenção/Troca de esquadria"]
     },
     "Elétrica": {
-        "Problemas": ["Quadro elétrico sem identificação", "Fios expostos", "Tomada/Interruptor danificado", "Iluminação inoperante", "Disjuntor desarmando"],
-        "Soluções": ["Identificação e diagrama do quadro", "Isolamento e embutimento de fiação", "Troca da tomada/interruptor", "Substituição de lâmpada/reator", "Revisão da carga e substituição do disjuntor"]
+        "Problemas": ["Quadro sem identificação", "Fios expostos", "Tomada danificada", "Iluminação inoperante", "Disjuntor desarmando"],
+        "Soluções": ["Identificação do quadro", "Isolamento de fiação", "Troca de acessório", "Substituição de lâmpadas", "Revisão de carga"]
     },
     "Hidráulica": {
-        "Problemas": ["Vazamento em tubulação", "Torneira pingando", "Descarga acoplada sem funcionar", "Ralo entupido", "Falta de pressão de água"],
-        "Soluções": ["Localização e reparo da tubulação", "Troca do reparo da torneira", "Manutenção ou substituição do mecanismo da descarga", "Desentupimento e limpeza do ralo", "Limpeza do castelo d'água ou pressurização"]
-    },
-    # Adicionar mais categorias conforme necessidade
-    "Outra": {
-        "Problemas": ["Descreva o problema aqui..."],
-        "Soluções": ["Sugira a solução aqui..."]
+        "Problemas": ["Vazamento visível", "Torneira pingando", "Descarga com defeito", "Ralo entupido", "Baixa pressão"],
+        "Soluções": ["Reparo de tubulação", "Troca de reparo", "Manutenção de mecanismo", "Desentupimento", "Limpeza de caixa d'água"]
     }
 }
 
 # 4. BARRA LATERAL (SIDEBAR)
-st.sidebar.title("⚙️ Painel de Controle")
+st.sidebar.title("⚙️ PRODIN")
 
 # Seleção do Engenheiro
-eng_selecionado = st.sidebar.selectbox("Engenheiro Responsável", list(mapa_engenheiros.keys()))
+eng_sel = st.sidebar.selectbox("Engenheiro Responsável", list(mapa_engenheiros.keys()))
 
-# --- NOVIDADE 1: AVATAR DO ENGENHEIRO ---
-genero = mapa_engenheiros[eng_selecionado]
-if genero == "M":
-    avatar_url = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" # Ícone de bonequinho engenheiro
-else:
-    avatar_url = "https://cdn-icons-png.flaticon.com/512/219/219969.png" # Ícone de bonequinha engenheira
+# --- AVATAR DINÂMICO ---
+genero = mapa_engenheiros[eng_sel]
+avatar = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" if genero == "M" else "https://cdn-icons-png.flaticon.com/512/219/219969.png"
+st.sidebar.image(avatar, width=100)
+# -----------------------
 
-col1, col2, col3 = st.sidebar.columns([1,2,1])
-with col2:
-    st.image(avatar_url, use_column_width=True)
-# ---------------------------------------
-
-# Seleção do Campus (Filtrado pelo Engenheiro)
-campus_selecionado = st.sidebar.selectbox("Campus", mapa_campi[eng_selecionado])
+campus_sel = st.sidebar.selectbox("Campus", mapa_campi[eng_sel])
 
 st.sidebar.markdown("---")
-choice = st.sidebar.radio("Navegação", ["Nova Inspeção", "Histórico de Registros"])
+choice = st.sidebar.radio("Navegação", ["Nova Inspeção", "Histórico"])
 
-if st.sidebar.button("Sair"):
-    st.session_state['autenticado'] = False
-    st.rerun()
+# --- RODAPÉ DOS DESENVOLVEDORES ---
+st.sidebar.markdown("<br><br><br>", unsafe_allow_html=True)
+st.sidebar.markdown("---")
+st.sidebar.markdown("""
+<div style='text-align: center; font-size: 0.8em; color: grey;'>
+    <strong>Desenvolvido por:</strong><br>
+    Thiago Messias Carvalho Soares<br>
+    Roger Ramos Santana<br>
+    <strong>PRODIN - IFBA 2026</strong>
+</div>
+""", unsafe_allow_html=True)
 
-# 5. CONEXÃO E INTERFACE PRINCIPAL
+# 5. LÓGICA DO FORMULÁRIO
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-st.title("📋 Inspeção Predial - IFBA")
-st.subheader(f"📍 {campus_selecionado}")
-
 if choice == "Nova Inspeção":
+    st.header("📋 Nova Inspeção")
     with st.form("form_inspecao", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
             edificacao = st.text_input("Edificação / Bloco")
-            
-            # --- NOVIDADE 2: SELEÇÃO DE DISCIPLINA PREDEFINIDA ---
-            disciplina = st.selectbox("Disciplina", disciplinas, index=0)
-            # ---------------------------------------------------
-            
+            disciplina = st.selectbox("Disciplina", ["Civil", "Elétrica", "Hidráulica", "Outros"])
         with col2:
-            data_ins = st.date_input("Data da Inspeção", datetime.now())
+            data_ins = st.date_input("Data", datetime.now())
             ambiente = st.text_input("Ambiente / Sala")
 
-        # --- NOVIDADE 3: PATOLOGIAS E SOLUÇÕES PREDEFINIDAS ---
-        # Sugestões baseadas na disciplina selecionada
-        st.markdown("**🔍 Detalhes da Inspeção**")
+        # Sugestões Predefinidas
+        sug_prob = sugestoes_inspecao.get(disciplina, {"Problemas": [""]})["Problemas"]
+        sug_sol = sugestoes_inspecao.get(disciplina, {"Soluções": [""]})["Soluções"]
         
-        # Seleção de Problema Predefinido (Selectbox com busca)
-        problema_sugerido = st.selectbox(
-            f"Escolha um problema comum de '{disciplina}':",
-            sugestoes_inspecao.get(disciplina, sugestoes_inspecao["Outra"])["Problemas"],
-            help="Ou selecione 'Outro' para digitar manualmente abaixo."
-        )
+        prob_sel = st.selectbox("Selecione um problema comum:", sug_prob)
+        descricao = st.text_area("Descrição Detalhada", value=prob_sel)
         
-        # Campo de texto opcional para detalhar ou usar caso não esteja na lista
-        descricao = st.text_area("Descrição do Problema", value=problema_sugerido, help="Você pode editar o texto sugerido.")
+        sol_sel = st.selectbox("Selecione uma solução comum:", sug_sol)
+        solucoes = st.text_area("Sugestão de Solução", value=sol_sel)
+        
+        foto = st.file_uploader("📸 Tirar Foto ou Galeria", type=['jpg', 'jpeg', 'png'])
 
-        # Seleção de Solução Predefinida (Selectbox com busca)
-        solucao_sugerida = st.selectbox(
-            f"Sugestão de solução para '{disciplina}':",
-            sugestoes_inspecao.get(disciplina, sugestoes_inspecao["Outra"])["Soluções"],
-            help="Ou selecione 'Outro' para digitar manualmente abaixo."
-        )
-        
-        # Campo de texto opcional para detalhar ou usar caso não esteja na lista
-        solucoes = st.text_area("Sugestão de Solução / Encaminhamento", value=solucao_sugerida, help="Você pode editar o texto sugerido.")
-        # -----------------------------------------------------
-        
-        # Lógica de Captura: No celular permite tirar foto na hora ou escolher da galeria
-        foto = st.file_uploader("📸 Tirar Foto ou Escolher da Galeria", type=['jpg', 'jpeg', 'png'])
-
-        if st.form_submit_button("✅ Salvar Registro"):
+        if st.form_submit_button("✅ Salvar"):
             foto_base64 = ""
-            
             if foto:
-                with st.spinner("Processando imagem..."):
-                    img = Image.open(foto)
-                    # Redimensiona mantendo a proporção para não estourar a planilha
-                    img.thumbnail((700, 700)) 
-                    buffered = io.BytesIO()
-                    img.save(buffered, format="JPEG", quality=70)
-                    foto_base64 = base64.b64encode(buffered.getvalue()).decode()
+                img = Image.open(foto)
+                img.thumbnail((700, 700)) 
+                buffered = io.BytesIO()
+                img.save(buffered, format="JPEG", quality=70)
+                foto_base64 = base64.b64encode(buffered.getvalue()).decode()
 
-            # Preparação dos dados para a Planilha
-            novo_dado = pd.DataFrame([{
-                "Data": data_ins.strftime("%d/%m/%Y"),
-                "Campus": campus_selecionado,
-                "Edificacao": edificacao,
-                "Disciplina": disciplina,
-                "Ambiente": ambiente,
-                "Descricao": descricao,
-                "Solucoes": solucoes,
-                "Engenheiro": eng_selecionado,
-                "Foto_Dados": foto_base64 # A foto vira texto e vai direto para a planilha
+            novo = pd.DataFrame([{
+                "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, "Edificacao": edificacao,
+                "Disciplina": disciplina, "Ambiente": ambiente, "Descricao": descricao, "Solucoes": solucoes,
+                "Engenheiro": eng_sel, "Foto_Dados": foto_base64
             }])
 
             try:
-                # Lê a planilha atual
-                df_antigo = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
-                # Adiciona o novo registro
-                df_final = pd.concat([df_antigo, novo_dado], ignore_index=True)
-                # Atualiza o Google Sheets
+                df_atual = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
+                df_final = pd.concat([df_atual, novo], ignore_index=True)
                 conn.update(spreadsheet=URL_PLANILHA, data=df_final)
-                st.success("✅ Registro enviado com sucesso! A foto está salva no seu celular e no banco de dados.")
+                st.success("✅ Tudo salvo!")
             except Exception as e:
-                st.error(f"Erro ao salvar na planilha: {e}")
+                st.error(f"Erro: {e}")
 
-elif choice == "Histórico de Registros":
+elif choice == "Histórico":
+    st.header("📂 Histórico")
     try:
         df = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
-        # Mostramos a tabela sem a coluna gigante de texto da foto
-        st.dataframe(df.drop(columns=['Foto_Dados'], errors='ignore'), use_container_width=True)
+        st.dataframe(df.drop(columns=['Foto_Dados'], errors='ignore'))
         
         if not df.empty:
-            st.divider()
-            id_linha = st.selectbox("Selecione o ID para ver os detalhes e a foto:", df.index)
-            reg = df.iloc[id_linha]
-            
-            st.markdown(f"### Detalhes do Registro #{id_linha}")
-            st.write(f"**Engenheiro:** {reg['Engenheiro']}")
-            st.write(f"**Descrição:** {reg['Descricao']}")
-            st.write(f"**Sugestão de Solução:** {reg['Solucoes']}")
-            
-            # Converte o Base64 de volta para imagem na tela
-            if "Foto_Dados" in reg and reg["Foto_Dados"]:
-                img_bytes = base64.b64decode(reg["Foto_Dados"])
-                st.image(img_bytes, caption=f"Evidência - {reg['Ambiente']}", use_column_width=True)
-            else:
-                st.info("Este registro não possui foto anexa.")
+            id_sel = st.selectbox("Ver Foto do ID:", df.index)
+            reg = df.iloc[id_sel]
+            if reg["Foto_Dados"]:
+                st.image(base64.b64decode(reg["Foto_Dados"]))
     except Exception as e:
-        st.error(f"Erro ao carregar o histórico: {e}")
-
-# RODAPÉ DE CRÉDITOS
-st.sidebar.markdown("---")
-st.sidebar.info(f"""
-**Desenvolvido por:**
-* Thiago Messias Carvalho Soares
-* Roger Ramos Santana
-
-*PRODIN - IFBA 2026*
-""")
+        st.error(f"Erro ao carregar: {e}")
