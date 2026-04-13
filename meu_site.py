@@ -6,116 +6,144 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.oauth2 import service_account
 import io
+import os
 
-# 1. CONFIGURAÇÕES INICIAIS
-st.set_page_config(page_title="Sistema de Inspeção IFBA", layout="centered")
+# 1. CONFIGURAÇÕES DA PÁGINA
+st.set_page_config(page_title="Sistema de Inspeção IFBA", layout="centered", page_icon="📋")
 
-# 2. CONEXÃO COM GOOGLE DRIVE (Para as Fotos)
-def upload_to_drive(file_bytes, file_name):
+# 2. FUNÇÃO PARA UPLOAD NO GOOGLE DRIVE
+def upload_to_drive(file_path, file_name):
     try:
-        # Puxa as credenciais das Secrets do Streamlit
         info = st.secrets["gcp_service_account"]
         credentials = service_account.Credentials.from_service_account_info(info)
         service = build('drive', 'v3', credentials=credentials)
 
-        # ID da pasta "FOTOS DO PRODIN EM CAMPUS" que você criou
+        # ID da sua pasta FOTOS DO PRODIN EM CAMPUS
         folder_id = '1gh5qlrzuAqGoyG8X5MP813MAzD9DsDo-' 
 
         file_metadata = {'name': file_name, 'parents': [folder_id]}
-        media = MediaFileUpload(file_bytes, mimetype='image/jpeg')
+        media = MediaFileUpload(file_path, mimetype='image/jpeg')
         
         file = service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink').execute()
+        service.permissions().create(fileId=file.get('id'), body={'type': 'anyone', 'role': 'viewer'}).execute()
+        
         return file.get('webViewLink')
     except Exception as e:
-        st.error(f"Erro no Drive: {e}")
+        st.error(f"Erro ao enviar para o Drive: {e}")
         return None
 
-# 3. CONEXÃO COM GOOGLE SHEETS (Para os Dados)
+# 3. CONEXÃO COM GOOGLE SHEETS
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def load_data():
-    # ttl=0 garante que ele sempre leia a versão mais nova da planilha
     return conn.read(ttl=0)
 
-# 4. INTERFACE DO USUÁRIO
-st.title("📋 Inspeção Predial - IFBA")
-st.subheader("Eng. Thiago Messias Carvalho Soares")
+# 4. MAPEAMENTO DE ENGENHEIROS POR CAMPUS
+# Adicione ou altere os nomes conforme a escala real
+mapa_engenheiros = {
+    "Poções": "Eng. Thiago Messias Carvalho Soares",
+    "Feira de Santana": "Eng. Thiago Messias Carvalho Soares",
+    "Barreiras": "Eng. Roger Ramos Santana",
+    "Brumado": "Eng. Roger Ramos Santana",
+    "Euclides da Cunha": "Eng. Thiago Messias Carvalho Soares",
+    "Jacobina": "Eng. Roger Ramos Santana"
+}
 
-menu = ["Nova Inspeção", "Histórico"]
-choice = st.sidebar.selectbox("Menu", menu)
+# 5. INTERFACE
+st.title("📋 Sistema de Inspeção Predial")
+st.markdown("### IFBA - Engenharia de Manutenção")
+
+menu = ["Nova Inspeção", "Histórico de Registros"]
+choice = st.sidebar.selectbox("Navegação", menu)
 
 if choice == "Nova Inspeção":
-    with st.form("form_inspecao"):
+    st.info("Preencha os dados abaixo para gerar um novo registro.")
+    
+    with st.form("form_inspecao", clear_on_submit=True):
         col1, col2 = st.columns(2)
+        
         with col1:
-            engenheiro = st.selectbox("Engenheiro", ["Eng. Thiago", "Eng. Roger Ramos"])
-            campus = st.selectbox("Campus", ["Euclides da Cunha", "Poções", "Feira de Santana"])
+            # Seleção de Campus primeiro para sugerir o engenheiro
+            campus_selecionado = st.selectbox("Campus", list(mapa_engenheiros.keys()))
+            
+            # Sugere o engenheiro com base no campus, mas permite trocar
+            lista_engenheiros = ["Eng. Thiago Messias Carvalho Soares", "Eng. Roger Ramos Santana"]
+            eng_sugerido = mapa_engenheiros.get(campus_selecionado)
+            index_padrao = lista_engenheiros.index(eng_sugerido) if eng_sugerido in lista_engenheiros else 0
+            
+            engenheiro = st.selectbox("Engenheiro Responsável", lista_engenheiros, index=index_padrao)
+            edificacao = st.text_input("Edificação / Bloco")
+            
         with col2:
-            data = st.date_input("Data da Inspeção", datetime.now())
-            local = st.text_input("Local Exato (Ex: Sala 04)")
+            data_inspecao = st.date_input("Data da Inspeção", datetime.now())
+            disciplina = st.text_input("Disciplina (Ex: Hidráulica, Civil)")
+            ambiente = st.text_input("Ambiente / Sala")
 
-    problema = st.text_area("Descrição do Problema")
-    gravidade = st.select_slider("Gravidade", options=["Leve", "Média", "Urgente"])
-    
-    # CAMPO DE FOTO
-    foto_arquivo = st.camera_input("📸 Capturar Evidência Fotográfica")
-
-    if st.form_submit_button("Salvar Inspeção"):
-        link_foto = "Sem foto"
-        if foto_arquivo:
-            st.info("Enviando foto para o Google Drive...")
-            # Converte a foto para bytes
-            img_bytes = io.BytesIO(foto_arquivo.getvalue())
-            nome_foto = f"Inspecao_{campus}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-            
-            # Salva no Drive e pega o link
-            temp_path = f"temp_{nome_foto}"
-            with open(temp_path, "wb") as f:
-                f.write(foto_arquivo.getbuffer())
-            
-            link_foto = upload_to_drive(temp_path, nome_foto)
+        descricao = st.text_area("Descrição do Problema Detectado")
+        solucoes = st.text_area("Sugestão de Solução")
         
-        # Salva na Planilha
-        novo_dado = pd.DataFrame([{
-            "Data": data.strftime("%d/%m/%Y"),
-            "Engenheiro": engenheiro,
-            "Campus": campus,
-            "Local": local,
-            "Problema": problema,
-            "Gravidade": gravidade,
-            "Foto": link_foto
-        }])
-        
-        df_atual = load_data()
-        df_final = pd.concat([df_atual, novo_dado], ignore_index=True)
-        conn.update(data=df_final)
-        st.success("✅ Inspeção salva com sucesso!")
+        foto_arquivo = st.camera_input("📸 Registrar Foto")
 
-elif choice == "Histórico":
-    st.subheader("Registros Realizados")
+        if st.form_submit_button("✅ Finalizar e Salvar Registro"):
+            link_drive = "Sem foto"
+            
+            if foto_arquivo:
+                with st.spinner("Enviando imagem..."):
+                    temp_name = f"temp_{datetime.now().timestamp()}.jpg"
+                    with open(temp_name, "wb") as f:
+                        f.write(foto_arquivo.getbuffer())
+                    
+                    nome_final_foto = f"Inspecao_{campus_selecionado}_{datetime.now().strftime('%d-%m-%Y_%H-%M')}.jpg"
+                    link_drive = upload_to_drive(temp_name, nome_final_foto)
+                    if os.path.exists(temp_name): os.remove(temp_name)
+
+            # Salva exatamente nas colunas da sua planilha (A até L)
+            novo_dado = pd.DataFrame([{
+                "Data": data_inspecao.strftime("%d/%m/%Y"),
+                "Campus": campus_selecionado,
+                "Edificacao": edificacao,
+                "Disciplina": disciplina,
+                "Ambiente": ambiente,
+                "Descricao": descricao,
+                "Solucoes": solucoes,
+                "Foto": "Anexada" if foto_arquivo else "Nenhuma",
+                "Engenheiro": engenheiro,
+                "Link_Foto": link_drive
+            }])
+
+            df_final = pd.concat([load_data(), novo_dado], ignore_index=True)
+            conn.update(data=df_final)
+            st.success("✅ Registro salvo com sucesso!")
+
+elif choice == "Histórico de Registros":
     df = load_data()
-    
     if not df.empty:
-        # Seleção de Registro
-        id_sel = st.selectbox("Selecione o ID para detalhes", df.index)
-        reg_sel = df.iloc[id_sel]
+        st.dataframe(df, use_container_width=True)
+        st.divider()
+        id_linha = st.selectbox("Selecione o ID para ver detalhes e foto:", df.index)
+        reg = df.iloc[id_linha]
         
-        st.write(f"**Engenheiro:** {reg_sel['Engenheiro']}")
-        st.write(f"**Problema:** {reg_sel['Problema']}")
-        
-        # --- TRAVA DE SEGURANÇA PARA A FOTO (Evita o erro vermelho) ---
-        if 'Foto' in reg_sel and str(reg_sel['Foto']).startswith('http'):
-            try:
-                st.image(reg_sel['Foto'], caption=f"Evidência da Inspeção", width=500)
-            except:
-                st.warning("Link de imagem encontrado, mas não pôde ser exibido.")
-        else:
-            st.info("Nenhuma foto disponível para este registro.")
-        # -------------------------------------------------------------
-        
-        st.dataframe(df)
+        c1, c2 = st.columns(2)
+        with c1:
+            st.write(f"**Campus:** {reg['Campus']}")
+            st.write(f"**Engenheiro:** {reg['Engenheiro']}")
+            st.write(f"**Local:** {reg['Edificacao']} - {reg['Ambiente']}")
+            st.write(f"**Descrição:** {reg['Descricao']}")
+        with c2:
+            link = reg.get('Link_Foto', "")
+            if str(link).startswith("http"):
+                st.image(link, caption="Evidência Fotográfica", use_container_width=True)
+            else:
+                st.warning("Sem foto disponível.")
     else:
-        st.info("Nenhum dado encontrado.")
+        st.warning("Nenhum registro encontrado.")
 
+# 6. RODAPÉ DE CRÉDITOS
 st.sidebar.markdown("---")
-st.sidebar.write("Desenvolvido por: **Thiago Carvalho** & **Roger Ramos**")
+st.sidebar.info(f"""
+**Desenvolvido por:**
+* Thiago Messias Carvalho Soares
+* Roger Ramos Santana
+
+*IFBA - 2026*
+""")
