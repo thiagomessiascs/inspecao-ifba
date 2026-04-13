@@ -7,19 +7,19 @@ from googleapiclient.http import MediaFileUpload
 from google.oauth2 import service_account
 import os
 
-# 1. CONFIGURAÇÕES
+# 1. CONFIGURAÇÕES BÁSICAS
 st.set_page_config(page_title="Sistema de Inspeção IFBA", layout="centered", page_icon="📋")
 
-# 🚨 COLOQUE O LINK DA SUA PLANILHA AQUI
+# 🔗 COLOQUE O LINK DA SUA PLANILHA AQUI
 URL_PLANILHA = "COLE_AQUI_O_LINK_DA_SUA_PLANILHA"
 
-# 2. LOGIN
+# 2. CONTROLE DE ACESSO
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
 if not st.session_state['autenticado']:
-    st.title("🔐 Acesso IFBA")
-    senha = st.text_input("Senha:", type="password")
+    st.title("🔐 Acesso Restrito - PRODIN")
+    senha = st.text_input("Digite a senha:", type="password")
     if st.button("Entrar"):
         if senha == "IFBA2026":
             st.session_state['autenticado'] = True
@@ -28,13 +28,14 @@ if not st.session_state['autenticado']:
             st.error("Senha incorreta!")
     st.stop()
 
-# 3. UPLOAD DRIVE (CORREÇÃO DE COTA DEFINITIVA)
+# 3. FUNÇÃO DE UPLOAD (CONTORNO DE COTA)
 def upload_to_drive(file_path, file_name):
     try:
         info = st.secrets["gcp_service_account"]
         credentials = service_account.Credentials.from_service_account_info(info)
         service = build('drive', 'v3', credentials=credentials)
         
+        # ID da sua pasta de fotos
         folder_id = '1gh5qlrzuAqGoyG8X5MP813MAzD9DsDo-' 
 
         file_metadata = {
@@ -44,8 +45,7 @@ def upload_to_drive(file_path, file_name):
         
         media = MediaFileUpload(file_path, mimetype='image/jpeg', resumable=True)
         
-        # O SEGREDO: Usamos 'supportsAllDrives=True' e garantimos que o robô 
-        # apenas escreva em uma pasta onde ele já tem permissão de EDITOR.
+        # Criar o arquivo forçando o suporte a drives compartilhados
         file = service.files().create(
             body=file_metadata, 
             media_body=media, 
@@ -53,7 +53,7 @@ def upload_to_drive(file_path, file_name):
             supportsAllDrives=True
         ).execute()
         
-        # Mudamos a permissão para que o arquivo seja visível no App
+        # Permissão pública para o link da imagem funcionar no app
         service.permissions().create(
             fileId=file.get('id'), 
             body={'type': 'anyone', 'role': 'viewer'},
@@ -63,12 +63,12 @@ def upload_to_drive(file_path, file_name):
         return file.get('webViewLink')
     except Exception as e:
         if "storageQuotaExceeded" in str(e):
-            st.error("⚠️ Erro de Cota: O Google Drive ainda não reconheceu o seu espaço. Tente o seguinte: Vá na pasta das fotos no seu Drive, remova o robô e adicione-o novamente como EDITOR.")
+            st.error("⚠️ Erro de Espaço (Cota): O Google bloqueou o robô. Tente usar uma pasta criada em um GMAIL PESSOAL.")
         else:
             st.error(f"❌ Erro no Drive: {e}")
         return None
 
-# 4. MAPEAMENTO
+# 4. MAPEAMENTO DE ENGENHEIROS E CAMPI
 mapa_prodin = {
     "Eng. Thiago": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"],
     "Eng. Roger": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"],
@@ -79,65 +79,99 @@ mapa_prodin = {
     "Eng. do Local": ["Salvador", "Reitoria", "Polo de Inovação", "Salinas da Margarida", "São Desidério"]
 }
 
-# 5. SIDEBAR
-st.sidebar.title("⚙️ PRODIN")
-eng_sel = st.sidebar.selectbox("Engenheiro", list(mapa_prodin.keys()))
-campus_sel = st.sidebar.selectbox("Campus", mapa_prodin[eng_sel])
-choice = st.sidebar.radio("Menu", ["Nova Inspeção", "Histórico"])
+# 5. MENU LATERAL
+st.sidebar.title("⚙️ Painel PRODIN")
+eng_selecionado = st.sidebar.selectbox("Engenheiro Responsável", list(mapa_prodin.keys()))
+campus_selecionado = st.sidebar.selectbox("Campus", mapa_prodin[eng_selecionado])
+choice = st.sidebar.radio("Navegação", ["Nova Inspeção", "Histórico de Registros"])
 
-# 6. CONEXÃO SHEETS
+if st.sidebar.button("Sair"):
+    st.session_state['autenticado'] = False
+    st.rerun()
+
+# 6. CONEXÃO COM GOOGLE SHEETS
 conn = st.connection("gsheets", type=GSheetsConnection)
+
+st.title("📋 Sistema de Inspeção Predial")
+st.info(f"📍 **Campus:** {campus_selecionado} | 👷 **Responsável:** {eng_selecionado}")
 
 if choice == "Nova Inspeção":
     with st.form("form_inspecao", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
-            edificacao = st.text_input("Edificação")
-            disciplina = st.text_input("Disciplina")
+            edificacao = st.text_input("Edificação / Bloco")
+            disciplina = st.text_input("Disciplina (Ex: Hidráulica)")
         with col2:
-            data_ins = st.date_input("Data", datetime.now())
-            ambiente = st.text_input("Ambiente")
+            data_ins = st.date_input("Data da Inspeção", datetime.now())
+            ambiente = st.text_input("Ambiente / Sala")
+
+        descricao = st.text_area("Descrição do Problema")
+        solucoes = st.text_area("Sugestão de Solução")
         
-        desc = st.text_area("Descrição")
-        sol = st.text_area("Solução")
-        foto = st.camera_input("📸 Foto")
+        foto_arquivo = st.camera_input("📸 Registrar Foto da Evidência")
 
-        if st.form_submit_button("Salvar Registro"):
-            link_f = "Sem foto"
-            sucesso_f = True
+        if st.form_submit_button("✅ Salvar Registro"):
+            link_drive = "Sem foto"
+            sucesso_upload = True
             
-            if foto:
-                tmp = f"temp_{datetime.now().timestamp()}.jpg"
-                with open(tmp, "wb") as f: f.write(foto.getbuffer())
-                link_f = upload_to_drive(tmp, f"Foto_{campus_sel}_{datetime.now().strftime('%d%m%Y_%H%M%S')}.jpg")
-                if os.path.exists(tmp): os.remove(tmp)
-                if link_f is None: sucesso_f = False
+            if foto_arquivo:
+                with st.spinner("Enviando foto ao Drive..."):
+                    temp_path = f"temp_{datetime.now().timestamp()}.jpg"
+                    with open(temp_path, "wb") as f:
+                        f.write(foto_arquivo.getbuffer())
+                    
+                    nome_f = f"Inspecao_{campus_selecionado}_{datetime.now().strftime('%d-%m-%Y_%H-%M')}.jpg"
+                    link_drive = upload_to_drive(temp_path, nome_f)
+                    
+                    if os.path.exists(temp_path): os.remove(temp_path)
+                    if link_drive is None: sucesso_upload = False
 
-            if sucesso_f:
-                novo = pd.DataFrame([{
-                    "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, "Edificacao": edificacao,
-                    "Disciplina": disciplina, "Ambiente": ambiente, "Descricao": desc, "Solucoes": sol,
-                    "Foto": "Sim" if foto else "Não", "Engenheiro": eng_sel, "Link_Foto": link_f
+            if sucesso_upload:
+                # Criar nova linha (Colunas A até L)
+                novo_registro = pd.DataFrame([{
+                    "Data": data_ins.strftime("%d/%m/%Y"),
+                    "Campus": campus_selecionado,
+                    "Edificacao": edificacao,
+                    "Disciplina": disciplina,
+                    "Ambiente": ambiente,
+                    "Descricao": descricao,
+                    "Solucoes": solucoes,
+                    "Foto": "Anexada" if foto_arquivo else "Nenhuma",
+                    "Engenheiro": eng_selecionado,
+                    "Link_Foto": link_drive
                 }])
 
                 try:
                     df_atual = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
-                    df_final = pd.concat([df_atual, novo], ignore_index=True)
+                    df_final = pd.concat([df_atual, novo_registro], ignore_index=True)
                     conn.update(spreadsheet=URL_PLANILHA, data=df_final)
-                    st.success("✅ Registro e Foto salvos com sucesso!")
+                    st.success("✅ Tudo salvo com sucesso na planilha e no Drive!")
                 except Exception as e:
                     st.error(f"Erro ao salvar na planilha: {e}")
 
-elif choice == "Histórico":
+elif choice == "Histórico de Registros":
     try:
         df = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
-        st.dataframe(df)
         if not df.empty:
-            id_sel = st.selectbox("Ver foto do ID:", df.index)
-            link = df.iloc[id_sel].get('Link_Foto', "")
-            if str(link).startswith("http"):
-                st.image(link)
+            st.dataframe(df, use_container_width=True)
+            st.divider()
+            id_linha = st.selectbox("Selecione o ID para ver detalhes e foto:", df.index)
+            reg = df.iloc[id_linha]
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                st.write(f"**Campus:** {reg['Campus']}")
+                st.write(f"**Engenheiro:** {reg['Engenheiro']}")
+                st.write(f"**Problema:** {reg['Descricao']}")
+            with c2:
+                link = reg.get('Link_Foto', "")
+                if str(link).startswith("http"):
+                    st.image(link, caption="Foto da Evidência", use_container_width=True)
+                else:
+                    st.warning("Sem foto para este registro.")
     except Exception as e:
-        st.error(f"Erro ao carregar dados: {e}")
+        st.error(f"Erro ao carregar histórico: {e}")
 
-st.sidebar.info("Thiago & Roger - 2026")
+# RODAPÉ
+st.sidebar.markdown("---")
+st.sidebar.info("Thiago Carvalho & Roger Ramos\n\nPRODIN - IFBA 2026")
