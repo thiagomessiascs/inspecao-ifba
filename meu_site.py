@@ -11,7 +11,7 @@ import requests
 # 1. CONFIGURAÇÕES DA PÁGINA
 st.set_page_config(page_title="Sistema PRODIN - IFBA", layout="centered", page_icon="📋")
 
-# 🔗 IMPORTANTE: COLE O LINK DA SUA PLANILHA ABAIXO
+# 🔗 IMPORTANTE: COLE O LINK DA SUA PLANILHA "PUBLICADA NA WEB" ABAIXO
 URL_PLANILHA = "COLE_AQUI_O_LINK_DA_SUA_PLANILHA"
 
 # 2. SISTEMA DE ACESSO
@@ -30,7 +30,6 @@ if not st.session_state['autenticado']:
     st.stop()
 
 # 3. MAPEAMENTO TÉCNICO (ENGENHEIROS, GÊNERO E CAMPUS)
-# Certificando que Laís e Larissa estão com "F"
 dados_prodin = {
     "Eng. Thiago": {"genero": "M", "campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"]},
     "Eng. Roger": {"genero": "M", "campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"]},
@@ -153,30 +152,28 @@ lista_disciplinas = ["Escolha..."] + list(sugestoes.keys()) + ["Outras"]
 with st.sidebar:
     st.markdown("<h1 style='text-align: center;'>⚙️ PRODIN - IFBA</h1>", unsafe_allow_html=True)
     
-    # Selectbox do Engenheiro
     eng_sel = st.selectbox("Engenheiro Responsável", list(dados_prodin.keys()))
     
-    # --- LOGICA DE AVATAR REFORÇADA (FORCE REFRESH) ---
+    # Lógica de Gênero para Avatar Centralizado
     genero = dados_prodin[eng_sel]["genero"]
-    
-    # Usando links de cores diferentes para garantir que o navegador note a mudança
     if genero == "F":
-        # Ícone de mulher com fundo ROXO
-        img_url = "https://img.icons8.com/bubbles/200/businesswoman.png"
+        icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135768.png"
     else:
-        # Ícone de homem com fundo AZUL
-        img_url = "https://img.icons8.com/bubbles/200/businessman.png"
+        icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
         
     col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
     with col_img2:
-        # O truque final: Adicionamos o nome do engenheiro no link para invalidar o cache
-        st.image(f"{img_url}?unique={eng_sel.replace(' ', '')}", use_container_width=True)
+        try:
+            res = requests.get(icon_url)
+            st.image(Image.open(io.BytesIO(res.content)), use_container_width=True)
+        except:
+            st.write("👤")
 
     campus_sel = st.selectbox("Campus", dados_prodin[eng_sel]["campi"])
     st.divider()
     choice = st.radio("Navegação", ["Nova Inspeção", "Histórico / PDF"])
 
-# 5. FUNÇÃO PARA GERAR PDF
+# 5. FUNÇÃO PARA GERAR PDF (FPDF)
 def gerar_pdf(dados):
     pdf = FPDF()
     pdf.add_page()
@@ -200,7 +197,6 @@ def gerar_pdf(dados):
 # 6. CONEXÃO COM GOOGLE SHEETS
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- TELA: NOVA INSPEÇÃO ---
 if choice == "Nova Inspeção":
     st.header("📋 Registrar Inspeção Técnica")
     disciplina = st.selectbox("1. Escolha a Disciplina Técnica:", lista_disciplinas)
@@ -214,7 +210,7 @@ if choice == "Nova Inspeção":
 
         col_amb, col_num = st.columns([2, 1])
         with col_amb:
-            ambiente = st.selectbox("Ambiente", ["Laboratório", "Sala Adm", "Sala de Aula", "Sanitário M", "Sanitário F", "Sanitário PCD", "Corredor", "Área Externa"])
+            ambiente = st.selectbox("Ambiente", ["Laboratório", "Sala Adm", "Sala de Aula", "Sanitário M", "Sanitário F", "Sanitário PCD", "Corredor", "Externo"])
         with col_num:
             sala_num = st.text_input("Nº Sala")
 
@@ -225,7 +221,7 @@ if choice == "Nova Inspeção":
             st.divider()
             pat_sel = st.selectbox("Patologia Identificada:", sugestoes[disciplina]['Problemas'])
             desc_final = st.text_area("Detalhamento:", value=pat_sel)
-            sol_sel = st.selectbox("Solução Recomendada:", sugestoes[disciplina]['Soluções'])
+            sol_sel = st.selectbox("Solução Sugerida:", sugestoes[disciplina]['Soluções'])
             sol_final = st.text_area("Encaminhamento:", value=sol_sel)
         
         foto = st.file_uploader("📸 Foto da Evidência", type=['jpg', 'jpeg', 'png'])
@@ -249,11 +245,10 @@ if choice == "Nova Inspeção":
                     df = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
                     df_f = pd.concat([df, novo_reg], ignore_index=True)
                     conn.update(spreadsheet=URL_PLANILHA, data=df_f)
-                    st.success("✅ Registro salvo com sucesso!")
+                    st.success("✅ Registro salvo!")
                 except:
                     st.error("Erro ao salvar: Verifique o link da sua planilha na linha 14.")
 
-# --- TELA: HISTÓRICO ---
 elif choice == "Histórico / PDF":
     st.header("📂 Histórico de Inspeções")
     try:
@@ -262,10 +257,14 @@ elif choice == "Histórico / PDF":
         if not df.empty:
             id_sel = st.selectbox("Selecione o ID para PDF:", df.index)
             reg = df.iloc[id_sel]
-            pdf_b = gerar_pdf(reg.to_dict())
-            st.download_button("📥 Baixar PDF", data=pdf_b, file_name=f"Inspecao_{id_sel}.pdf", mime="application/pdf")
+            col_v, col_p = st.columns([1, 1])
+            with col_v:
+                if reg["Foto_Dados"]:
+                    st.image(base64.b64decode(reg["Foto_Dados"]), width=300)
+            with col_p:
+                pdf_b = gerar_pdf(reg.to_dict())
+                st.download_button("📥 Baixar PDF", data=pdf_b, file_name=f"Inspecao_{id_sel}.pdf", mime="application/pdf")
     except:
-        st.error("Erro ao carregar banco de dados.")
+        st.error("Erro ao carregar banco de dados. Verifique o link da sua planilha.")
 
-# RODAPÉ
 st.markdown("<br><hr><div style='text-align: center; color: gray;'><strong>Desenvolvido por:</strong><br>Thiago Messias Carvalho Soares & Roger Ramos Santana<br>PRODIN - IFBA 2026</div>", unsafe_allow_html=True)
