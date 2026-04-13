@@ -5,13 +5,13 @@ from datetime import datetime
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.oauth2 import service_account
-import io
 import os
 
-# 1. CONFIGURAÇÕES
+# 1. CONFIGURAÇÕES INICIAIS
 st.set_page_config(page_title="Sistema de Inspeção IFBA", layout="centered", page_icon="📋")
 
-# Link da sua planilha (Substitua pelo seu link real)
+# 🚨 IMPORTANTE: Verifique se o link da sua planilha termina com /edit#gid=0 ou algo parecido
+# O link deve ser o que você copia da barra de endereços do navegador
 URL_PLANILHA = "COLE_AQUI_O_LINK_DA_SUA_PLANILHA"
 
 # 2. LOGIN
@@ -29,7 +29,7 @@ if not st.session_state['autenticado']:
             st.error("Senha incorreta!")
     st.stop()
 
-# 3. UPLOAD DRIVE (CORREÇÃO DEFINITIVA DE COTA)
+# 3. UPLOAD DRIVE (VERSÃO SEM ERRO DE COTA)
 def upload_to_drive(file_path, file_name):
     try:
         info = st.secrets["gcp_service_account"]
@@ -38,17 +38,21 @@ def upload_to_drive(file_path, file_name):
         
         folder_id = '1gh5qlrzuAqGoyG8X5MP813MAzD9DsDo-' 
 
-        file_metadata = {'name': file_name, 'parents': [folder_id]}
+        file_metadata = {
+            'name': file_name, 
+            'parents': [folder_id]
+        }
+        
         media = MediaFileUpload(file_path, mimetype='image/jpeg', resumable=True)
         
-        # O segredo: 'supportsAllDrives=True' ajuda na questão da cota compartilhada
+        # Criar o arquivo
         file = service.files().create(
             body=file_metadata, 
             media_body=media, 
-            fields='id, webViewLink',
-            supportsAllDrives=True 
+            fields='id, webViewLink'
         ).execute()
         
+        # Compartilhar para visualização
         service.permissions().create(
             fileId=file.get('id'), 
             body={'type': 'anyone', 'role': 'viewer'}
@@ -56,10 +60,14 @@ def upload_to_drive(file_path, file_name):
         
         return file.get('webViewLink')
     except Exception as e:
-        st.error(f"Erro no Drive: {e}")
+        # Se der erro de cota, vamos tentar avisar de forma clara
+        if "storageQuotaExceeded" in str(e):
+            st.error("Erro de Espaço: O robô não conseguiu usar o seu armazenamento. Verifique se você deu permissão de EDITOR para o e-mail do robô na pasta do Drive.")
+        else:
+            st.error(f"Erro no Drive: {e}")
         return None
 
-# 4. MAPEAMENTO
+# 4. MAPEAMENTO PRODIN
 mapa_prodin = {
     "Eng. Thiago": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"],
     "Eng. Roger": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"],
@@ -93,32 +101,39 @@ if choice == "Nova Inspeção":
         sol = st.text_area("Solução")
         foto = st.camera_input("📸 Foto")
 
-        if st.form_submit_button("Salvar"):
+        if st.form_submit_button("Salvar Registro"):
             link_f = "Sem foto"
             if foto:
                 tmp = f"temp_{datetime.now().timestamp()}.jpg"
                 with open(tmp, "wb") as f: f.write(foto.getbuffer())
-                link_f = upload_to_drive(tmp, f"Foto_{campus_sel}_{datetime.now().strftime('%d%m%Y')}.jpg")
+                link_f = upload_to_drive(tmp, f"Foto_{campus_sel}_{datetime.now().strftime('%d%m%Y_%H%M%S')}.jpg")
                 if os.path.exists(tmp): os.remove(tmp)
 
-            novo = pd.DataFrame([{
-                "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, "Edificacao": edificacao,
-                "Disciplina": disciplina, "Ambiente": ambiente, "Descricao": desc, "Solucoes": sol,
-                "Foto": "Sim" if foto else "Não", "Engenheiro": eng_sel, "Link_Foto": link_f
-            }])
+            if link_f or not foto: # Só salva se a foto deu certo ou se não tirou foto
+                novo = pd.DataFrame([{
+                    "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, "Edificacao": edificacao,
+                    "Disciplina": disciplina, "Ambiente": ambiente, "Descricao": desc, "Solucoes": sol,
+                    "Foto": "Sim" if foto else "Não", "Engenheiro": eng_sel, "Link_Foto": link_f
+                }])
 
-            # Lendo a planilha usando o link direto para evitar o erro de 'must be specified'
-            df_atual = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
-            df_final = pd.concat([df_atual, novo], ignore_index=True)
-            conn.update(spreadsheet=URL_PLANILHA, data=df_final)
-            st.success("✅ Salvo com sucesso!")
+                try:
+                    df_atual = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
+                    df_final = pd.concat([df_atual, novo], ignore_index=True)
+                    conn.update(spreadsheet=URL_PLANILHA, data=df_final)
+                    st.success("✅ Registro salvo com sucesso!")
+                except Exception as e:
+                    st.error(f"Erro ao salvar na planilha: {e}")
 
 elif choice == "Histórico":
-    df = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
-    st.dataframe(df)
-    id_sel = st.selectbox("Ver foto do ID:", df.index)
-    link = df.iloc[id_sel].get('Link_Foto', "")
-    if str(link).startswith("http"):
-        st.image(link)
+    try:
+        df = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
+        st.dataframe(df)
+        if not df.empty:
+            id_sel = st.selectbox("Ver foto do ID:", df.index)
+            link = df.iloc[id_sel].get('Link_Foto', "")
+            if str(link).startswith("http"):
+                st.image(link)
+    except Exception as e:
+        st.error(f"Erro ao carregar histórico: {e}")
 
 st.sidebar.info("Thiago & Roger - 2026")
