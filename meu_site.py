@@ -8,52 +8,47 @@ from google.oauth2 import service_account
 import io
 import os
 
-# 1. CONFIGURAÇÕES DA PÁGINA
+# 1. CONFIGURAÇÕES
 st.set_page_config(page_title="Sistema de Inspeção IFBA", layout="centered", page_icon="📋")
 
-# 2. SISTEMA DE LOGIN (Senha: IFBA2026)
+# Link da sua planilha (Substitua pelo seu link real)
+URL_PLANILHA = "COLE_AQUI_O_LINK_DA_SUA_PLANILHA"
+
+# 2. LOGIN
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
-def login():
-    st.title("🔐 Acesso Restrito - IFBA")
-    senha = st.text_input("Digite a senha de acesso:", type="password")
+if not st.session_state['autenticado']:
+    st.title("🔐 Acesso IFBA")
+    senha = st.text_input("Senha:", type="password")
     if st.button("Entrar"):
         if senha == "IFBA2026":
             st.session_state['autenticado'] = True
             st.rerun()
         else:
             st.error("Senha incorreta!")
-
-if not st.session_state['autenticado']:
-    login()
     st.stop()
 
-# 3. FUNÇÃO DE UPLOAD PARA O DRIVE (COM CORREÇÃO DE COTA)
+# 3. UPLOAD DRIVE (CORREÇÃO DEFINITIVA DE COTA)
 def upload_to_drive(file_path, file_name):
     try:
         info = st.secrets["gcp_service_account"]
         credentials = service_account.Credentials.from_service_account_info(info)
         service = build('drive', 'v3', credentials=credentials)
         
-        # ID da sua pasta compartilhada onde o robô é Editor
         folder_id = '1gh5qlrzuAqGoyG8X5MP813MAzD9DsDo-' 
 
-        file_metadata = {
-            'name': file_name, 
-            'parents': [folder_id]
-        }
-        
-        # 'resumable=True' resolve o erro de cota em contas de serviço
+        file_metadata = {'name': file_name, 'parents': [folder_id]}
         media = MediaFileUpload(file_path, mimetype='image/jpeg', resumable=True)
         
+        # O segredo: 'supportsAllDrives=True' ajuda na questão da cota compartilhada
         file = service.files().create(
             body=file_metadata, 
             media_body=media, 
-            fields='id, webViewLink'
+            fields='id, webViewLink',
+            supportsAllDrives=True 
         ).execute()
         
-        # Dá permissão de visualização para o link funcionar no histórico
         service.permissions().create(
             fileId=file.get('id'), 
             body={'type': 'anyone', 'role': 'viewer'}
@@ -64,7 +59,7 @@ def upload_to_drive(file_path, file_name):
         st.error(f"Erro no Drive: {e}")
         return None
 
-# 4. MAPEAMENTO COMPLETO (CONFORME BANNER PRODIN)
+# 4. MAPEAMENTO
 mapa_prodin = {
     "Eng. Thiago": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"],
     "Eng. Roger": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"],
@@ -75,99 +70,55 @@ mapa_prodin = {
     "Eng. do Local": ["Salvador", "Reitoria", "Polo de Inovação", "Salinas da Margarida", "São Desidério"]
 }
 
-# 5. BARRA LATERAL (SIDEBAR)
-st.sidebar.title("⚙️ Painel de Controle")
+# 5. SIDEBAR
+st.sidebar.title("⚙️ PRODIN")
+eng_sel = st.sidebar.selectbox("Engenheiro", list(mapa_prodin.keys()))
+campus_sel = st.sidebar.selectbox("Campus", mapa_prodin[eng_sel])
+choice = st.sidebar.radio("Menu", ["Nova Inspeção", "Histórico"])
 
-# Seleção do Engenheiro
-eng_selecionado = st.sidebar.selectbox("Engenheiro Responsável", list(mapa_prodin.keys()))
-
-# Seleção do Campus (Filtrado pelo Engenheiro)
-campus_selecionado = st.sidebar.selectbox("Campus", mapa_prodin[eng_selecionado])
-
-st.sidebar.markdown("---")
-choice = st.sidebar.radio("Navegação", ["Nova Inspeção", "Histórico de Registros"])
-
-if st.sidebar.button("Sair"):
-    st.session_state['autenticado'] = False
-    st.rerun()
-
-# 6. CONEXÃO E INTERFACE PRINCIPAL
+# 6. CONEXÃO SHEETS
 conn = st.connection("gsheets", type=GSheetsConnection)
-
-st.title("📋 Inspeção Predial - IFBA")
-st.info(f"📍 {campus_selecionado} | 👷 {eng_selecionado}")
 
 if choice == "Nova Inspeção":
     with st.form("form_inspecao", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
-            edificacao = st.text_input("Edificação / Bloco")
-            disciplina = st.text_input("Disciplina (Ex: Civil)")
+            edificacao = st.text_input("Edificação")
+            disciplina = st.text_input("Disciplina")
         with col2:
             data_ins = st.date_input("Data", datetime.now())
-            ambiente = st.text_input("Ambiente / Sala")
-
-        descricao = st.text_area("Descrição do Problema")
-        solucoes = st.text_area("Sugestão de Solução")
+            ambiente = st.text_input("Ambiente")
         
-        foto_arquivo = st.camera_input("📸 Foto da Evidência")
+        desc = st.text_area("Descrição")
+        sol = st.text_area("Solução")
+        foto = st.camera_input("📸 Foto")
 
-        if st.form_submit_button("✅ Salvar Registro"):
-            link_foto = "Sem foto"
-            if foto_arquivo:
-                with st.spinner("Enviando foto ao Drive..."):
-                    # Arquivo temporário
-                    temp = f"temp_{datetime.now().timestamp()}.jpg"
-                    with open(temp, "wb") as f: f.write(foto_arquivo.getbuffer())
-                    
-                    nome_f = f"Inspecao_{campus_selecionado}_{datetime.now().strftime('%d-%m-%y_%H-%M')}.jpg"
-                    link_foto = upload_to_drive(temp, nome_f)
-                    
-                    if os.path.exists(temp): os.remove(temp)
+        if st.form_submit_button("Salvar"):
+            link_f = "Sem foto"
+            if foto:
+                tmp = f"temp_{datetime.now().timestamp()}.jpg"
+                with open(tmp, "wb") as f: f.write(foto.getbuffer())
+                link_f = upload_to_drive(tmp, f"Foto_{campus_sel}_{datetime.now().strftime('%d%m%Y')}.jpg")
+                if os.path.exists(tmp): os.remove(tmp)
 
-            # Montagem do DataFrame para o Sheets (Colunas A a L)
-            novo_dado = pd.DataFrame([{
-                "Data": data_ins.strftime("%d/%m/%Y"),
-                "Campus": campus_selecionado,
-                "Edificacao": edificacao,
-                "Disciplina": disciplina,
-                "Ambiente": ambiente,
-                "Descricao": descricao,
-                "Solucoes": solucoes,
-                "Foto": "Anexada" if foto_arquivo else "Nenhuma",
-                "Engenheiro": eng_selecionado,
-                "Link_Foto": link_foto
+            novo = pd.DataFrame([{
+                "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, "Edificacao": edificacao,
+                "Disciplina": disciplina, "Ambiente": ambiente, "Descricao": desc, "Solucoes": sol,
+                "Foto": "Sim" if foto else "Não", "Engenheiro": eng_sel, "Link_Foto": link_f
             }])
 
-            # Atualiza a Planilha
-            df_antigo = conn.read(ttl=0)
-            df_final = pd.concat([df_antigo, novo_dado], ignore_index=True)
-            conn.update(data=df_final)
-            st.success("✅ Registro e Foto salvos com sucesso!")
+            # Lendo a planilha usando o link direto para evitar o erro de 'must be specified'
+            df_atual = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
+            df_final = pd.concat([df_atual, novo], ignore_index=True)
+            conn.update(spreadsheet=URL_PLANILHA, data=df_final)
+            st.success("✅ Salvo com sucesso!")
 
-elif choice == "Histórico de Registros":
-    df = conn.read(ttl=0)
-    if not df.empty:
-        st.dataframe(df, use_container_width=True)
-        st.divider()
-        st.markdown("### Detalhes do Registro Selecionado")
-        id_linha = st.selectbox("Selecione o ID para ver a foto:", df.index)
-        reg = df.iloc[id_linha]
-        
-        # Exibe a foto se houver link válido
-        if str(reg.get('Link_Foto', "")).startswith("http"):
-            st.image(reg['Link_Foto'], caption=f"Evidência - {reg['Ambiente']}", use_container_width=True)
-        else:
-            st.warning("Este registro não possui foto.")
-    else:
-        st.warning("Nenhum dado encontrado na planilha.")
+elif choice == "Histórico":
+    df = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
+    st.dataframe(df)
+    id_sel = st.selectbox("Ver foto do ID:", df.index)
+    link = df.iloc[id_sel].get('Link_Foto', "")
+    if str(link).startswith("http"):
+        st.image(link)
 
-# RODAPÉ DE CRÉDITOS
-st.sidebar.markdown("---")
-st.sidebar.info(f"""
-**Desenvolvido por:**
-* Thiago Messias Carvalho Soares
-* Roger Ramos Santana
-
-*PRODIN - IFBA 2026*
-""")
+st.sidebar.info("Thiago & Roger - 2026")
