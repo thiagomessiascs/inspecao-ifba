@@ -48,109 +48,127 @@ mapa_campi = {
     "Eng. do Local": ["Salvador", "Reitoria", "Polo de Inovação", "Salinas da Margarida", "São Desidério"]
 }
 
+disciplinas = ["Civil", "Elétrica", "Hidráulica", "Segurança contra Incêndio", "Mecânica (Climatização)", "Estrutura"]
+
 sugestoes_inspecao = {
     "Civil": {
-        "Problemas": ["Infiltração em laje/cobertura", "Fissuras em alvenaria", "Piso quebrado/solto", "Pintura descascando", "Esquadria danificada"],
-        "Soluções": ["Impermeabilização", "Tratamento de fissuras e reboco", "Substituição de revestimento", "Repintura", "Manutenção/Troca de esquadria"]
+        "Problemas": ["Infiltração em laje/cobertura", "Fissuras em alvenaria", "Piso quebrado/solto", "Pintura descascando/com bolhas", "Porta/Janela com defeito"],
+        "Soluções": ["Impermeabilização da superfície", "Tratamento de fissuras e reboco", "Substituição do revestimento", "Repintura com fundo preparador", "Manutenção ou troca da esquadria"]
     },
     "Elétrica": {
-        "Problemas": ["Quadro sem identificação", "Fios expostos", "Tomada danificada", "Iluminação inoperante", "Disjuntor desarmando"],
-        "Soluções": ["Identificação do quadro", "Isolamento de fiação", "Troca de acessório", "Substituição de lâmpadas", "Revisão de carga"]
+        "Problemas": ["Quadro elétrico sem identificação", "Fios expostos", "Tomada/Interruptor danificado", "Iluminação inoperante", "Disjuntor desarmando"],
+        "Soluções": ["Identificação e diagrama do quadro", "Isolamento e embutimento de fiação", "Troca da tomada/interruptor", "Substituição de lâmpada/reator", "Revisão da carga e substituição do disjuntor"]
     },
     "Hidráulica": {
-        "Problemas": ["Vazamento visível", "Torneira pingando", "Descarga com defeito", "Ralo entupido", "Baixa pressão"],
-        "Soluções": ["Reparo de tubulação", "Troca de reparo", "Manutenção de mecanismo", "Desentupimento", "Limpeza de caixa d'água"]
+        "Problemas": ["Vazamento em tubulação", "Torneira pingando", "Descarga acoplada sem funcionar", "Ralo entupido", "Falta de pressão de água"],
+        "Soluções": ["Localização e reparo da tubulação", "Troca do reparo da torneira", "Manutenção ou substituição do mecanismo da descarga", "Desentupimento e limpeza do ralo", "Limpeza do castelo d'água ou pressurização"]
+    },
+    "Outra": {
+        "Problemas": ["Descreva o problema aqui..."],
+        "Soluções": ["Sugira a solução aqui..."]
     }
 }
 
 # 4. BARRA LATERAL (SIDEBAR)
-st.sidebar.title("⚙️ PRODIN")
+st.sidebar.title("⚙️ Painel de Controle")
 
 # Seleção do Engenheiro
 eng_sel = st.sidebar.selectbox("Engenheiro Responsável", list(mapa_engenheiros.keys()))
 
 # --- AVATAR DINÂMICO ---
 genero = mapa_engenheiros[eng_sel]
-avatar = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" if genero == "M" else "https://cdn-icons-png.flaticon.com/512/219/219969.png"
-st.sidebar.image(avatar, width=100)
+avatar_url = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" if genero == "M" else "https://cdn-icons-png.flaticon.com/512/219/219969.png"
+col_side1, col_side2, col_side3 = st.sidebar.columns([1,2,1])
+with col_side2:
+    st.image(avatar_url, use_container_width=True)
 # -----------------------
 
 campus_sel = st.sidebar.selectbox("Campus", mapa_campi[eng_sel])
-
 st.sidebar.markdown("---")
-choice = st.sidebar.radio("Navegação", ["Nova Inspeção", "Histórico"])
+choice = st.sidebar.radio("Navegação", ["Nova Inspeção", "Histórico de Registros"])
 
-# --- RODAPÉ DOS DESENVOLVEDORES ---
-st.sidebar.markdown("<br><br><br>", unsafe_allow_html=True)
-st.sidebar.markdown("---")
-st.sidebar.markdown("""
-<div style='text-align: center; font-size: 0.8em; color: grey;'>
-    <strong>Desenvolvido por:</strong><br>
-    Thiago Messias Carvalho Soares<br>
-    Roger Ramos Santana<br>
-    <strong>PRODIN - IFBA 2026</strong>
-</div>
-""", unsafe_allow_html=True)
+if st.sidebar.button("Sair do Sistema"):
+    st.session_state['autenticado'] = False
+    st.rerun()
 
-# 5. LÓGICA DO FORMULÁRIO
+# 5. CONEXÃO E INTERFACE PRINCIPAL
 conn = st.connection("gsheets", type=GSheetsConnection)
 
+st.title("📋 Inspeção Predial - IFBA")
+st.info(f"📍 **Campus:** {campus_sel} | 👷 **Responsável:** {eng_sel}")
+
 if choice == "Nova Inspeção":
-    st.header("📋 Nova Inspeção")
     with st.form("form_inspecao", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
             edificacao = st.text_input("Edificação / Bloco")
-            disciplina = st.selectbox("Disciplina", ["Civil", "Elétrica", "Hidráulica", "Outros"])
+            disciplina = st.selectbox("Disciplina", disciplinas, index=0)
         with col2:
-            data_ins = st.date_input("Data", datetime.now())
+            data_ins = st.date_input("Data da Inspeção", datetime.now())
             ambiente = st.text_input("Ambiente / Sala")
 
-        # Sugestões Predefinidas
-        sug_prob = sugestoes_inspecao.get(disciplina, {"Problemas": [""]})["Problemas"]
-        sug_sol = sugestoes_inspecao.get(disciplina, {"Soluções": [""]})["Soluções"]
+        st.markdown("**🔍 Detalhes da Inspeção**")
         
-        prob_sel = st.selectbox("Selecione um problema comum:", sug_prob)
-        descricao = st.text_area("Descrição Detalhada", value=prob_sel)
-        
-        sol_sel = st.selectbox("Selecione uma solução comum:", sug_sol)
-        solucoes = st.text_area("Sugestão de Solução", value=sol_sel)
-        
-        foto = st.file_uploader("📸 Tirar Foto ou Galeria", type=['jpg', 'jpeg', 'png'])
+        prob_sugerido = st.selectbox(f"Problema comum de '{disciplina}':", 
+                                   sugestoes_inspecao.get(disciplina, sugestoes_inspecao["Outra"])["Problemas"])
+        descricao = st.text_area("Descrição do Problema", value=prob_sugerido)
 
-        if st.form_submit_button("✅ Salvar"):
+        sol_sugerida = st.selectbox(f"Sugestão de solução para '{disciplina}':", 
+                                  sugestoes_inspecao.get(disciplina, sugestoes_inspecao["Outra"])["Soluções"])
+        solucoes = st.text_area("Sugestão de Solução", value=sol_sugerida)
+        
+        foto = st.file_uploader("📸 Tirar Foto ou Escolher da Galeria", type=['jpg', 'jpeg', 'png'])
+
+        if st.form_submit_button("✅ Salvar Registro"):
             foto_base64 = ""
             if foto:
-                img = Image.open(foto)
-                img.thumbnail((700, 700)) 
-                buffered = io.BytesIO()
-                img.save(buffered, format="JPEG", quality=70)
-                foto_base64 = base64.b64encode(buffered.getvalue()).decode()
+                with st.spinner("Processando imagem..."):
+                    img = Image.open(foto)
+                    img.thumbnail((700, 700)) 
+                    buffered = io.BytesIO()
+                    img.save(buffered, format="JPEG", quality=70)
+                    foto_base64 = base64.b64encode(buffered.getvalue()).decode()
 
-            novo = pd.DataFrame([{
+            novo_dado = pd.DataFrame([{
                 "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, "Edificacao": edificacao,
                 "Disciplina": disciplina, "Ambiente": ambiente, "Descricao": descricao, "Solucoes": solucoes,
                 "Engenheiro": eng_sel, "Foto_Dados": foto_base64
             }])
 
             try:
-                df_atual = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
-                df_final = pd.concat([df_atual, novo], ignore_index=True)
+                df_antigo = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
+                df_final = pd.concat([df_antigo, novo_dado], ignore_index=True)
                 conn.update(spreadsheet=URL_PLANILHA, data=df_final)
-                st.success("✅ Tudo salvo!")
+                st.success("✅ Tudo salvo com sucesso!")
             except Exception as e:
-                st.error(f"Erro: {e}")
+                st.error(f"Erro ao salvar: {e}")
 
-elif choice == "Histórico":
-    st.header("📂 Histórico")
+elif choice == "Histórico de Registros":
     try:
         df = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
-        st.dataframe(df.drop(columns=['Foto_Dados'], errors='ignore'))
-        
+        st.dataframe(df.drop(columns=['Foto_Dados'], errors='ignore'), use_container_width=True)
         if not df.empty:
-            id_sel = st.selectbox("Ver Foto do ID:", df.index)
-            reg = df.iloc[id_sel]
+            st.divider()
+            id_linha = st.selectbox("Selecione o ID para ver detalhes:", df.index)
+            reg = df.iloc[id_linha]
+            st.markdown(f"### Detalhes do Registro #{id_linha}")
             if reg["Foto_Dados"]:
-                st.image(base64.b64decode(reg["Foto_Dados"]))
+                st.image(base64.b64decode(reg["Foto_Dados"]), caption=f"Evidência - {reg['Ambiente']}", use_container_width=True)
+            st.write(f"**Descrição:** {reg['Descricao']}")
+            st.write(f"**Solução:** {reg['Solucoes']}")
     except Exception as e:
         st.error(f"Erro ao carregar: {e}")
+
+# --- RODAPÉ CENTRALIZADO NA PÁGINA ---
+st.markdown("<br><br><br>", unsafe_allow_html=True)
+st.divider()
+st.markdown(
+    """
+    <div style="text-align: center; color: #6d6d6d; font-size: 0.9em;">
+        <strong>Desenvolvido por:</strong><br>
+        Thiago Messias Carvalho Soares & Roger Ramos Santana<br>
+        <span style="color: #2e7d32; font-weight: bold;">PRODIN - IFBA 2026</span>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
