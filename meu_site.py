@@ -11,7 +11,7 @@ import requests
 # 1. CONFIGURAÇÕES DA PÁGINA
 st.set_page_config(page_title="Sistema PRODIN - IFBA", layout="centered", page_icon="📋")
 
-# 🔗 IMPORTANTE: COLE O LINK DA SUA PLANILHA ABAIXO (LINHA 14)
+# 🔗 IMPORTANTE: COLE O LINK DA SUA PLANILHA "PUBLICADA NA WEB" ABAIXO
 URL_PLANILHA = "COLE_AQUI_O_LINK_DA_SUA_PLANILHA"
 
 # 2. SISTEMA DE ACESSO
@@ -154,9 +154,12 @@ with st.sidebar:
     
     eng_sel = st.selectbox("Engenheiro Responsável", list(dados_prodin.keys()))
     
-    # Lógica de Gênero e Avatar Centralizado
+    # Lógica de Gênero para Avatar Centralizado
     genero = dados_prodin[eng_sel]["genero"]
-    icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" if genero == "M" else "https://cdn-icons-png.flaticon.com/512/3135/3135768.png"
+    if genero == "F":
+        icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135768.png"
+    else:
+        icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
         
     col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
     with col_img2:
@@ -170,7 +173,7 @@ with st.sidebar:
     st.divider()
     choice = st.radio("Navegação", ["Nova Inspeção", "Histórico / PDF"])
 
-# 5. FUNÇÃO PARA GERAR PDF
+# 5. FUNÇÃO PARA GERAR PDF (FPDF)
 def gerar_pdf(dados):
     pdf = FPDF()
     pdf.add_page()
@@ -191,19 +194,19 @@ def gerar_pdf(dados):
         except: pass
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
-# 6. CONEXÃO
+# 6. CONEXÃO COM GOOGLE SHEETS
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 if choice == "Nova Inspeção":
     st.header("📋 Registrar Inspeção Técnica")
     disciplina = st.selectbox("1. Escolha a Disciplina Técnica:", lista_disciplinas)
     
-    with st.form("form_prodin", clear_on_submit=True):
+    with st.form("form_prodin_final", clear_on_submit=True):
         col_ed, col_dt = st.columns([2, 1])
         with col_ed:
             edificacao = st.selectbox("Edificação", ["Pavilhão de Aulas", "Pavilhão Administrativo", "Refeitório", "Ginásio", "Muro", "Estacionamento", "Guarita", "Galpão", "Usina Solar"])
         with col_dt:
-            data_ins = st.date_input("Data", datetime.now())
+            data_ins = st.date_input("Data da Inspeção", datetime.now())
 
         col_amb, col_num = st.columns([2, 1])
         with col_amb:
@@ -243,7 +246,7 @@ if choice == "Nova Inspeção":
                     df_f = pd.concat([df, novo_reg], ignore_index=True)
                     conn.update(spreadsheet=URL_PLANILHA, data=df_f)
                     st.success("✅ Registro salvo!")
-                except Exception as e:
+                except:
                     st.error("Erro ao salvar: Verifique o link da sua planilha na linha 14.")
 
 elif choice == "Histórico / PDF":
@@ -262,6 +265,6 @@ elif choice == "Histórico / PDF":
                 pdf_b = gerar_pdf(reg.to_dict())
                 st.download_button("📥 Baixar PDF", data=pdf_b, file_name=f"Inspecao_{id_sel}.pdf", mime="application/pdf")
     except:
-        st.error("Erro ao carregar banco de dados. Verifique o link da sua planilha na linha 14.")
+        st.error("Erro ao carregar banco de dados. Verifique o link da sua planilha.")
 
 st.markdown("<br><hr><div style='text-align: center; color: gray;'><strong>Desenvolvido por:</strong><br>Thiago Messias Carvalho Soares & Roger Ramos Santana<br>PRODIN - IFBA 2026</div>", unsafe_allow_html=True)
