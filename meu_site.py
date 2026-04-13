@@ -2,157 +2,120 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+from google.oauth2 import service_account
+import io
 
-# --- 1. CONFIGURAÇÃO DA EQUIPE E MAPA DE CAMPI (PRODIN) ---
-EQUIPE = {
-    "Eng. Thiago": {"campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"], "foto": "https://github.com/thiagomessiascs/inspecao-ifba/blob/main/Thiago.jpg?raw=true"},
-    "Eng. Roger": {"campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"], "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"},
-    "Eng. Laís": {"campi": ["Barreiras", "Jaguaquara", "Jequié"], "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135768.png"},
-    "Eng. Larissa": {"campi": ["Campo Formoso", "Juazeiro", "Casa Nova", "Ilhéus", "Ubaitaba", "Camacã"], "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135768.png"},
-    "Eng. Marcelo": {"campi": ["Brumado", "Vitória da Conquista"], "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"},
-    "Eng. Fenelon": {"campi": ["Camaçari", "Lauro de Freitas", "Santo Antônio de Jesus", "Simões Filho", "Valença"], "foto": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"}
-}
+# 1. CONFIGURAÇÕES INICIAIS
+st.set_page_config(page_title="Sistema de Inspeção IFBA", layout="centered")
 
-DADOS_TECNICOS = {
-    "Alvenaria": {"patologias": ["Fissura/Trinca", "Umidade ascendente", "Desplacamento", "Outros"], "solucoes": ["Tratamento com tela", "Impermeabilização", "Reboco novo", "Outros"]},
-    "Estrutura": {"patologias": ["Corrosão de armadura", "Segregação de concreto", "Fissura estrutural", "Outros"], "solucoes": ["Escarificação e tratamento", "Grouteamento", "Reforço", "Outros"]},
-    "Cobertura": {"patologias": ["Telha quebrada", "Infiltração em calha", "Estrutura comprometida", "Outros"], "solucoes": ["Substituição de telhas", "Limpeza e vedação", "Impermeabilização", "Outros"]},
-    "Instalação elétrica": {"patologias": ["Fiação exposta", "Disjuntor desarmando", "Lâmpada queimada", "Outros"], "solucoes": ["Revisão de cabeamento", "Troca de componentes", "Substituição LED", "Outros"]},
-    "Instalação hidrossanitária": {"patologias": ["Vazamento", "Entupimento", "Mau cheiro", "Outros"], "solucoes": ["Troca de reparo", "Desobstrução", "Revisão de tubulação", "Outros"]},
-    "Outros": {"patologias": ["Outros"], "solucoes": ["Outros"]}
-}
+# 2. CONEXÃO COM GOOGLE DRIVE (Para as Fotos)
+def upload_to_drive(file_bytes, file_name):
+    try:
+        # Puxa as credenciais das Secrets do Streamlit
+        info = st.secrets["gcp_service_account"]
+        credentials = service_account.Credentials.from_service_account_info(info)
+        service = build('drive', 'v3', credentials=credentials)
 
-# --- 2. CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Inspeção Predial IFBA", layout="wide")
+        # ID da pasta "FOTOS DO PRODIN EM CAMPUS" que você criou
+        folder_id = '1gh5qlrzuAqGoyG8X5MP813MAzD9DsDo-' 
 
-# Inicialização de variáveis de controle para limpeza e edição
-if "form_data" not in st.session_state:
-    st.session_state.form_data = {"edif": None, "amb": None, "comp": "", "disc": None, "pat": None, "sol_sug": None, "desc_txt": "", "sol_txt": "", "idx": None}
-
-def reset_form():
-    st.session_state.form_data = {"edif": None, "amb": None, "comp": "", "disc": None, "pat": None, "sol_sug": None, "desc_txt": "", "sol_txt": "", "idx": None}
-
-# --- 3. LOGIN ---
-if "login" not in st.session_state: st.session_state.login = False
-
-if not st.session_state.login:
-    st.title("🔐 Login PRODIN")
-    senha = st.text_input("Senha de Acesso:", type="password")
-    if st.button("Acessar Sistema"):
-        if senha == "IFBA2026":
-            st.session_state.login = True
-            st.rerun()
-else:
-    # Conexão com Google Sheets
-    conn = st.connection("gsheets", type=GSheetsConnection)
-    df_base = conn.read(ttl="0")
-
-    with st.sidebar:
-        st.subheader("🕵️ Vistoriador")
-        eng_sel = st.selectbox("Selecione seu nome:", list(EQUIPE.keys())) #
-        st.image(EQUIPE[eng_sel]["foto"], width=100)
+        file_metadata = {'name': file_name, 'parents': [folder_id]}
+        media = MediaFileUpload(file_bytes, mimetype='image/jpeg')
         
-        # Filtro de Campi por Engenheiro
-        campi_permitidos = sorted(EQUIPE[eng_sel]["campi"])
-        campus_sel = st.selectbox("Campus da Vistoria:", campi_permitidos)
-        
-        if st.button("Sair"):
-            st.session_state.login = False
-            st.rerun()
+        file = service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink').execute()
+        return file.get('webViewLink')
+    except Exception as e:
+        st.error(f"Erro no Drive: {e}")
+        return None
 
-    # --- 4. FORMULÁRIO DE INSPEÇÃO ---
-    st.markdown(f'<h1 style="color:#1e4620;">🏢 Sistema de Inspeção Predial - IFBA</h1>', unsafe_allow_html=True)
-    
-    with st.expander(f"📝 Formulário de Registro - {campus_sel}", expanded=True):
+# 3. CONEXÃO COM GOOGLE SHEETS (Para os Dados)
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+def load_data():
+    # ttl=0 garante que ele sempre leia a versão mais nova da planilha
+    return conn.read(ttl=0)
+
+# 4. INTERFACE DO USUÁRIO
+st.title("📋 Inspeção Predial - IFBA")
+st.subheader("Eng. Thiago Messias Carvalho Soares")
+
+menu = ["Nova Inspeção", "Histórico"]
+choice = st.sidebar.selectbox("Menu", menu)
+
+if choice == "Nova Inspeção":
+    with st.form("form_inspecao"):
         col1, col2 = st.columns(2)
-        
         with col1:
-            edificacao = st.selectbox("Edificação/Bloco:", ["Pavilhão administrativo", "Pavilhão acadêmico", "Refeitório", "Anexo", "Biblioteca", "Ginásio", "Muro"], 
-                                     index=None if st.session_state.form_data["edif"] is None else ["Pavilhão administrativo", "Pavilhão acadêmico", "Refeitório", "Anexo", "Biblioteca", "Ginásio", "Muro"].index(st.session_state.form_data["edif"]))
-            
-            ambiente = st.selectbox("Ambiente:", ["Sala de aula", "Laboratório", "Sanitário", "Corredor", "Pátio"], 
-                                    index=None if st.session_state.form_data["amb"] is None else ["Sala de aula", "Laboratório", "Sanitário", "Corredor", "Pátio"].index(st.session_state.form_data["amb"]))
-            
-            complemento = st.text_input("Nº ou Complemento:", value=st.session_state.form_data["comp"]) if ambiente and ("Sala" in ambiente or "Laboratório" in ambiente) else ""
-            
-            # DISCIPLINA DISPARA A LÓGICA DE PATOLOGIA
-            disciplina = st.selectbox("Disciplina:", list(DADOS_TECNICOS.keys()), 
-                                      index=None if st.session_state.form_data["disc"] is None else list(DADOS_TECNICOS.keys()).index(st.session_state.form_data["disc"]))
-
+            engenheiro = st.selectbox("Engenheiro", ["Eng. Thiago", "Eng. Roger Ramos"])
+            campus = st.selectbox("Campus", ["Euclides da Cunha", "Poções", "Feira de Santana"])
         with col2:
-            if disciplina:
-                # Recupera listas específicas da disciplina
-                pats = DADOS_TECNICOS[disciplina]["patologias"]
-                sols = DADOS_TECNICOS[disciplina]["solucoes"]
-                
-                pat_escolhida = st.selectbox("Patologia Comum:", pats, 
-                                             index=None if st.session_state.form_data["pat"] is None else pats.index(st.session_state.form_data["pat"]))
-                
-                desc_final = st.text_area("Descrição Técnica Detalhada:", value=st.session_state.form_data["desc_txt"] if st.session_state.form_data["desc_txt"] else (pat_escolhida if pat_escolhida and pat_escolhida != "Outros" else ""))
-                
-                sol_escolhida = st.selectbox("Sugestão de Solução:", sols, 
-                                             index=None if st.session_state.form_data["sol_sug"] is None else sols.index(st.session_state.form_data["sol_sug"]))
-                
-                sol_final = st.text_area("Proposta de Intervenção:", value=st.session_state.form_data["sol_txt"] if st.session_state.form_data["sol_txt"] else (sol_escolhida if sol_escolhida and sol_escolhida != "Outros" else ""))
-            else:
-                st.info("💡 Escolha a Disciplina para ver as patologias e soluções.")
-                desc_final = sol_final = ""
+            data = st.date_input("Data da Inspeção", datetime.now())
+            local = st.text_input("Local Exato (Ex: Sala 04)")
 
-        # GUT e Foto
-        st.markdown("---")
-        c1, c2 = st.columns(2)
-        with c1:
-            foto = st.file_uploader("📸 Registro Fotográfico", type=["jpg", "png", "jpeg"])
-        with c2:
-            g = st.select_slider("Gravidade", [1,2,3,4,5], 3)
-            u = st.select_slider("Urgência", [1,2,3,4,5], 3)
-            t = st.select_slider("Tendência", [1,2,3,4,5], 3)
-            score = g*u*t
-
-        # BOTÃO SALVAR (Com Limpeza de Campos)
-        if st.button("💾 Salvar Inspeção"):
-            if edificacao and disciplina:
-                nova_entrada = {
-                    "Data": datetime.now().strftime("%d/%m/%Y"), "Engenheiro": eng_sel, "Campus": campus_sel,
-                    "Edificacao": edificacao, "Ambiente": f"{ambiente} {complemento}", "Disciplina": disciplina,
-                    "Descricao": desc_final, "Solucoes": sol_final, "Score_GUT": score
-                }
-                
-                if st.session_state.form_data["idx"] is not None:
-                    df_base.iloc[st.session_state.form_data["idx"]] = nova_entrada
-                else:
-                    df_base = pd.concat([df_base, pd.DataFrame([nova_entrada])], ignore_index=True)
-                
-                conn.update(data=df_base)
-                st.success("✅ Registro processado com sucesso!")
-                reset_form()
-                st.rerun()
-            else:
-                st.error("Campos obrigatórios: Edificação e Disciplina.")
-
-    # --- 5. HISTÓRICO E EDIÇÃO ---
-    st.markdown("---")
-    st.subheader(f"📋 Registros Recentes em {campus_sel}")
-    df_campus = df_base[df_base['Campus'] == campus_sel].reset_index()
+    problema = st.text_area("Descrição do Problema")
+    gravidade = st.select_slider("Gravidade", options=["Leve", "Média", "Urgente"])
     
-    if not df_campus.empty:
-        st.dataframe(df_campus[["Edificacao", "Ambiente", "Disciplina", "Score_GUT"]].tail(10), use_container_width=True)
-        
-        # Lógica de Edição: Selecionar linha para carregar no formulário
-        edit_idx = st.selectbox("Para EDITAR, selecione o registro abaixo:", df_campus.index, format_func=lambda x: f"Item {x} - {df_campus.loc[x, 'Edificacao']} ({df_campus.loc[x, 'Disciplina']})")
-        
-        if st.button("✏️ Carregar para Edição"):
-            item = df_campus.loc[edit_idx]
-            # Extrai apenas o nome do ambiente sem o complemento
-            amb_puro = item["Ambiente"].split(" ")[0] if " " in item["Ambiente"] else item["Ambiente"]
-            comp_puro = item["Ambiente"].replace(amb_puro, "").strip()
-            
-            st.session_state.form_data = {
-                "edif": item["Edificacao"], "amb": amb_puro, "comp": comp_puro, 
-                "disc": item["Disciplina"], "pat": None, "sol_sug": None,
-                "desc_txt": item["Descricao"], "sol_txt": item["Solucoes"], "idx": item["index"]
-            }
-            st.rerun()
+    # CAMPO DE FOTO
+    foto_arquivo = st.camera_input("📸 Capturar Evidência Fotográfica")
 
-    # Rodapé
-    st.markdown(f'<div style="text-align:center; color:#888; padding-top:30px;">Desenvolvido por: Thiago Messias Carvalho Soares | Roger Ramos Santana<br>Equipe PRODIN - IFBA 2026</div>', unsafe_allow_html=True)
+    if st.form_submit_button("Salvar Inspeção"):
+        link_foto = "Sem foto"
+        if foto_arquivo:
+            st.info("Enviando foto para o Google Drive...")
+            # Converte a foto para bytes
+            img_bytes = io.BytesIO(foto_arquivo.getvalue())
+            nome_foto = f"Inspecao_{campus}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+            
+            # Salva no Drive e pega o link
+            temp_path = f"temp_{nome_foto}"
+            with open(temp_path, "wb") as f:
+                f.write(foto_arquivo.getbuffer())
+            
+            link_foto = upload_to_drive(temp_path, nome_foto)
+        
+        # Salva na Planilha
+        novo_dado = pd.DataFrame([{
+            "Data": data.strftime("%d/%m/%Y"),
+            "Engenheiro": engenheiro,
+            "Campus": campus,
+            "Local": local,
+            "Problema": problema,
+            "Gravidade": gravidade,
+            "Foto": link_foto
+        }])
+        
+        df_atual = load_data()
+        df_final = pd.concat([df_atual, novo_dado], ignore_index=True)
+        conn.update(data=df_final)
+        st.success("✅ Inspeção salva com sucesso!")
+
+elif choice == "Histórico":
+    st.subheader("Registros Realizados")
+    df = load_data()
+    
+    if not df.empty:
+        # Seleção de Registro
+        id_sel = st.selectbox("Selecione o ID para detalhes", df.index)
+        reg_sel = df.iloc[id_sel]
+        
+        st.write(f"**Engenheiro:** {reg_sel['Engenheiro']}")
+        st.write(f"**Problema:** {reg_sel['Problema']}")
+        
+        # --- TRAVA DE SEGURANÇA PARA A FOTO (Evita o erro vermelho) ---
+        if 'Foto' in reg_sel and str(reg_sel['Foto']).startswith('http'):
+            try:
+                st.image(reg_sel['Foto'], caption=f"Evidência da Inspeção", width=500)
+            except:
+                st.warning("Link de imagem encontrado, mas não pôde ser exibido.")
+        else:
+            st.info("Nenhuma foto disponível para este registro.")
+        # -------------------------------------------------------------
+        
+        st.dataframe(df)
+    else:
+        st.info("Nenhum dado encontrado.")
+
+st.sidebar.markdown("---")
+st.sidebar.write("Desenvolvido por: **Thiago Carvalho** & **Roger Ramos**")
