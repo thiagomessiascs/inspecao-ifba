@@ -10,8 +10,7 @@ import os
 # 1. CONFIGURAÇÕES INICIAIS
 st.set_page_config(page_title="Sistema de Inspeção IFBA", layout="centered", page_icon="📋")
 
-# 🚨 IMPORTANTE: Verifique se o link da sua planilha termina com /edit#gid=0 ou algo parecido
-# O link deve ser o que você copia da barra de endereços do navegador
+# 🚨 COLOQUE O LINK DA SUA PLANILHA AQUI (O mesmo que você usa no navegador)
 URL_PLANILHA = "COLE_AQUI_O_LINK_DA_SUA_PLANILHA"
 
 # 2. LOGIN
@@ -29,7 +28,7 @@ if not st.session_state['autenticado']:
             st.error("Senha incorreta!")
     st.stop()
 
-# 3. UPLOAD DRIVE (VERSÃO SEM ERRO DE COTA)
+# 3. UPLOAD DRIVE (ESTRATÉGIA ANTI-COTA)
 def upload_to_drive(file_path, file_name):
     try:
         info = st.secrets["gcp_service_account"]
@@ -43,28 +42,31 @@ def upload_to_drive(file_path, file_name):
             'parents': [folder_id]
         }
         
+        # O pulo do gato: resumable=True e o corpo do arquivo bem definido
         media = MediaFileUpload(file_path, mimetype='image/jpeg', resumable=True)
         
-        # Criar o arquivo
+        # Criamos o arquivo garantindo que ele aceite drives compartilhados/pastas compartilhadas
         file = service.files().create(
             body=file_metadata, 
             media_body=media, 
-            fields='id, webViewLink'
+            fields='id, webViewLink',
+            supportsAllDrives=True
         ).execute()
         
-        # Compartilhar para visualização
+        # Dá permissão de visualização para o link funcionar no histórico
         service.permissions().create(
             fileId=file.get('id'), 
-            body={'type': 'anyone', 'role': 'viewer'}
+            body={'type': 'anyone', 'role': 'viewer'},
+            supportsAllDrives=True
         ).execute()
         
         return file.get('webViewLink')
     except Exception as e:
-        # Se der erro de cota, vamos tentar avisar de forma clara
+        # Se o erro de cota aparecer, damos uma instrução clara
         if "storageQuotaExceeded" in str(e):
-            st.error("Erro de Espaço: O robô não conseguiu usar o seu armazenamento. Verifique se você deu permissão de EDITOR para o e-mail do robô na pasta do Drive.")
+            st.error("⚠️ O Google Drive barrou o upload por falta de espaço na conta do robô. Certifique-se de que a PASTA e a PLANILHA foram compartilhadas com o e-mail do robô como EDITOR.")
         else:
-            st.error(f"Erro no Drive: {e}")
+            st.error(f"❌ Erro no Drive: {e}")
         return None
 
 # 4. MAPEAMENTO PRODIN
@@ -103,13 +105,16 @@ if choice == "Nova Inspeção":
 
         if st.form_submit_button("Salvar Registro"):
             link_f = "Sem foto"
+            sucesso_foto = True
+            
             if foto:
                 tmp = f"temp_{datetime.now().timestamp()}.jpg"
                 with open(tmp, "wb") as f: f.write(foto.getbuffer())
                 link_f = upload_to_drive(tmp, f"Foto_{campus_sel}_{datetime.now().strftime('%d%m%Y_%H%M%S')}.jpg")
                 if os.path.exists(tmp): os.remove(tmp)
+                if link_f is None: sucesso_foto = False
 
-            if link_f or not foto: # Só salva se a foto deu certo ou se não tirou foto
+            if sucesso_foto:
                 novo = pd.DataFrame([{
                     "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, "Edificacao": edificacao,
                     "Disciplina": disciplina, "Ambiente": ambiente, "Descricao": desc, "Solucoes": sol,
@@ -120,7 +125,7 @@ if choice == "Nova Inspeção":
                     df_atual = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
                     df_final = pd.concat([df_atual, novo], ignore_index=True)
                     conn.update(spreadsheet=URL_PLANILHA, data=df_final)
-                    st.success("✅ Registro salvo com sucesso!")
+                    st.success("✅ Tudo pronto! Registro e foto salvos.")
                 except Exception as e:
                     st.error(f"Erro ao salvar na planilha: {e}")
 
@@ -134,6 +139,6 @@ elif choice == "Histórico":
             if str(link).startswith("http"):
                 st.image(link)
     except Exception as e:
-        st.error(f"Erro ao carregar histórico: {e}")
+        st.error(f"Erro ao carregar dados: {e}")
 
 st.sidebar.info("Thiago & Roger - 2026")
