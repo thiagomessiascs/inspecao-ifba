@@ -11,7 +11,7 @@ import requests
 # 1. CONFIGURAÇÕES DA PÁGINA
 st.set_page_config(page_title="Sistema PRODIN - IFBA", layout="centered", page_icon="📋")
 
-# 🔗 IMPORTANTE: COLE O LINK DA SUA PLANILHA "PUBLICADA NA WEB" ABAIXO
+# 🔗 COLE O LINK DA SUA PLANILHA AQUI (Certifique-se que ela está "Publicada na Web")
 URL_PLANILHA = "COLE_AQUI_O_LINK_DA_SUA_PLANILHA"
 
 # 2. SISTEMA DE ACESSO
@@ -29,7 +29,7 @@ if not st.session_state['autenticado']:
             st.error("Senha incorreta!")
     st.stop()
 
-# 3. MAPEAMENTO TÉCNICO (ENGENHEIROS, GÊNERO E CAMPUS DO MAPA)
+# 3. MAPEAMENTO TÉCNICO (ENGENHEIROS, GÊNERO E CAMPUS CONFORME O MAPA)
 dados_prodin = {
     "Eng. Thiago": {"genero": "M", "campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"]},
     "Eng. Roger": {"genero": "M", "campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"]},
@@ -154,12 +154,9 @@ with st.sidebar:
     
     eng_sel = st.selectbox("Engenheiro Responsável", list(dados_prodin.keys()))
     
-    # Avatar Centralizado e Dinâmico
+    # --- LOGICA DE GÊNERO CORRIGIDA E CENTRALIZADA ---
     genero = dados_prodin[eng_sel]["genero"]
-    if genero == "M":
-        icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
-    else:
-        icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135768.png"
+    icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" if genero == "M" else "https://cdn-icons-png.flaticon.com/512/3135/3135768.png"
         
     col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
     with col_img2:
@@ -169,13 +166,13 @@ with st.sidebar:
         except:
             st.write("👤")
 
-    # Campus Dinâmico
+    # Campus Dinâmico conforme o mapa
     campus_sel = st.selectbox("Campus", dados_prodin[eng_sel]["campi"])
     
     st.divider()
     choice = st.radio("Navegação", ["Nova Inspeção", "Histórico / PDF"])
 
-# 5. FUNÇÃO PARA GERAR PDF (FPDF)
+# 5. FUNÇÃO PDF
 def gerar_pdf(dados):
     pdf = FPDF()
     pdf.add_page()
@@ -193,11 +190,10 @@ def gerar_pdf(dados):
             img.save("temp_report.jpg", "JPEG")
             pdf.ln(5); pdf.cell(200, 10, "EVIDÊNCIA FOTOGRÁFICA:", ln=True)
             pdf.image("temp_report.jpg", x=10, w=100)
-        except:
-            pass
+        except: pass
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
-# 6. CONEXÃO COM GOOGLE SHEETS
+# 6. CONEXÃO
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # --- TELA: NOVA INSPEÇÃO ---
@@ -208,15 +204,15 @@ if choice == "Nova Inspeção":
     with st.form("form_prodin_final", clear_on_submit=True):
         col_ed, col_dt = st.columns([2, 1])
         with col_ed:
-            edificacao = st.selectbox("Edificação / Bloco", ["Pavilhão de Aulas", "Pavilhão Administrativo", "Refeitório", "Ginásio", "Muro", "Estacionamento", "Guarita", "Galpão Industrial", "Usina de Biodiesel", "Usina Solar"])
+            edificacao = st.selectbox("Edificação", ["Pavilhão de Aulas", "Pavilhão Administrativo", "Refeitório", "Ginásio", "Muro", "Estacionamento", "Guarita", "Galpão", "Usina Solar"])
         with col_dt:
             data_ins = st.date_input("Data da Inspeção", datetime.now())
 
         col_amb, col_num = st.columns([2, 1])
         with col_amb:
-            ambiente = st.selectbox("Ambiente / Sala", ["Laboratório", "Sala Administrativa", "Sala de Aulas", "Sanitário Masculino", "Sanitário Feminino", "Sanitário PCD", "Corredor", "Área Externa", "Outro"])
+            ambiente = st.selectbox("Ambiente", ["Laboratório", "Sala Adm", "Sala de Aula", "Sanitário M", "Sanitário F", "Sanitário PCD", "Corredor", "Área Externa"])
         with col_num:
-            sala_num = st.text_input("Nº Sala", placeholder="Ex: 102")
+            sala_num = st.text_input("Nº Sala")
 
         ambiente_final = f"{ambiente} - {sala_num}" if sala_num else ambiente
         desc_final, sol_final = "", ""
@@ -224,18 +220,15 @@ if choice == "Nova Inspeção":
         if disciplina in sugestoes:
             st.divider()
             pat_sel = st.selectbox("Patologia Identificada:", sugestoes[disciplina]['Problemas'])
-            desc_final = st.text_area("Detalhamento da Patologia:", value=pat_sel)
+            desc_final = st.text_area("Detalhamento:", value=pat_sel)
             sol_sel = st.selectbox("Solução Recomendada:", sugestoes[disciplina]['Soluções'])
             sol_final = st.text_area("Encaminhamento:", value=sol_sel)
-        elif disciplina == "Outras":
-            desc_final = st.text_area("Descreva a Patologia:")
-            sol_final = st.text_area("Descreva a Solução:")
-
+        
         foto = st.file_uploader("📸 Foto da Evidência", type=['jpg', 'jpeg', 'png'])
 
         if st.form_submit_button("✅ Salvar na Planilha"):
             if disciplina == "Escolha...":
-                st.error("Por favor, selecione a disciplina!")
+                st.error("Selecione a disciplina!")
             else:
                 foto_b64 = ""
                 if foto:
@@ -254,7 +247,7 @@ if choice == "Nova Inspeção":
                     conn.update(spreadsheet=URL_PLANILHA, data=df_f)
                     st.success("✅ Registro salvo com sucesso!")
                 except Exception as e:
-                    st.error(f"Erro ao salvar: Verifique o link da sua planilha.")
+                    st.error("Erro ao salvar: Verifique o link da sua planilha na linha 14.")
 
 # --- TELA: HISTÓRICO ---
 elif choice == "Histórico / PDF":
@@ -262,25 +255,16 @@ elif choice == "Histórico / PDF":
     try:
         df = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
         st.dataframe(df.drop(columns=['Foto_Dados'], errors='ignore'), use_container_width=True)
-        
         if not df.empty:
-            st.divider()
-            id_sel = st.selectbox("Selecione o ID para gerar o PDF:", df.index)
+            id_sel = st.selectbox("Selecione o ID para PDF:", df.index)
             reg = df.iloc[id_sel]
-            
             col_v, col_p = st.columns([1, 1])
             with col_v:
                 if reg["Foto_Dados"]:
-                    st.image(base64.b64decode(reg["Foto_Dados"]), caption="Evidência", width=300)
-            
+                    st.image(base64.b64decode(reg["Foto_Dados"]), width=300)
             with col_p:
-                pdf_bytes = gerar_pdf(reg.to_dict())
-                st.download_button(
-                    label="📥 Baixar PDF",
-                    data=pdf_bytes,
-                    file_name=f"Relatorio_{id_sel}.pdf",
-                    mime="application/pdf"
-                )
+                pdf_b = gerar_pdf(reg.to_dict())
+                st.download_button("📥 Baixar PDF", data=pdf_b, file_name=f"Inspecao_{id_sel}.pdf", mime="application/pdf")
     except:
         st.error("Erro ao carregar banco de dados. Verifique o link da sua planilha.")
 
