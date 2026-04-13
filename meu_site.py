@@ -11,7 +11,7 @@ import requests
 # 1. CONFIGURAÇÕES DA PÁGINA
 st.set_page_config(page_title="Sistema PRODIN - IFBA", layout="centered", page_icon="📋")
 
-# 🔗 COLOQUE O LINK DA SUA PLANILHA AQUI
+# 🔗 IMPORTANTE: COLE O LINK DA SUA PLANILHA "PUBLICADA NA WEB" ABAIXO
 URL_PLANILHA = "COLE_AQUI_O_LINK_DA_SUA_PLANILHA"
 
 # 2. SISTEMA DE ACESSO
@@ -154,9 +154,12 @@ with st.sidebar:
     
     eng_sel = st.selectbox("Engenheiro Responsável", list(dados_prodin.keys()))
     
-    # --- AVATAR CENTRALIZADO E DINÂMICO ---
+    # Avatar Centralizado e Dinâmico
     genero = dados_prodin[eng_sel]["genero"]
-    icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" if genero == "M" else "https://cdn-icons-png.flaticon.com/512/3135/3135768.png"
+    if genero == "M":
+        icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+    else:
+        icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135768.png"
         
     col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
     with col_img2:
@@ -176,34 +179,22 @@ with st.sidebar:
 def gerar_pdf(dados):
     pdf = FPDF()
     pdf.add_page()
-    
-    # Cabeçalho
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(200, 10, "RELATÓRIO DE INSPEÇÃO PREDIAL - IFBA", ln=True, align='C')
     pdf.ln(10)
-    
-    # Corpo do Relatório
     for chave, valor in dados.items():
         if chave != "Foto_Dados":
-            pdf.set_font("Arial", 'B', 11)
-            pdf.cell(40, 8, f"{chave}:", 0)
-            pdf.set_font("Arial", size=11)
-            pdf.multi_cell(0, 8, f"{str(valor)}", 0)
-            pdf.ln(2)
-    
-    # Adicionar Foto se existir
+            pdf.set_font("Arial", 'B', 11); pdf.cell(40, 8, f"{chave}:", 0)
+            pdf.set_font("Arial", size=11); pdf.multi_cell(0, 8, f"{str(valor)}", 0); pdf.ln(2)
     if dados.get("Foto_Dados"):
         try:
             img_data = base64.b64decode(dados["Foto_Dados"])
-            img = Image.open(io.BytesIO(img_data))
-            # Salvar temporariamente para o FPDF ler
-            img.save("temp_img.jpg", "JPEG")
-            pdf.ln(10)
-            pdf.cell(200, 10, "EVIDÊNCIA FOTOGRÁFICA:", ln=True)
-            pdf.image("temp_img.jpg", x=10, w=100)
-        except Exception as e:
-            pdf.cell(200, 10, f"Erro ao carregar foto: {e}", ln=True)
-
+            img = Image.open(io.BytesIO(img_data)).convert("RGB")
+            img.save("temp_report.jpg", "JPEG")
+            pdf.ln(5); pdf.cell(200, 10, "EVIDÊNCIA FOTOGRÁFICA:", ln=True)
+            pdf.image("temp_report.jpg", x=10, w=100)
+        except:
+            pass
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
 # 6. CONEXÃO COM GOOGLE SHEETS
@@ -263,7 +254,7 @@ if choice == "Nova Inspeção":
                     conn.update(spreadsheet=URL_PLANILHA, data=df_f)
                     st.success("✅ Registro salvo com sucesso!")
                 except Exception as e:
-                    st.error(f"Erro ao salvar: {e}")
+                    st.error(f"Erro ao salvar: Verifique o link da sua planilha.")
 
 # --- TELA: HISTÓRICO ---
 elif choice == "Histórico / PDF":
@@ -277,25 +268,21 @@ elif choice == "Histórico / PDF":
             id_sel = st.selectbox("Selecione o ID para gerar o PDF:", df.index)
             reg = df.iloc[id_sel]
             
-            col_ver, col_pdf = st.columns([1, 1])
-            with col_ver:
+            col_v, col_p = st.columns([1, 1])
+            with col_v:
                 if reg["Foto_Dados"]:
                     st.image(base64.b64decode(reg["Foto_Dados"]), caption="Evidência", width=300)
             
-            with col_pdf:
-                st.write(f"**Engenheiro:** {reg['Engenheiro']}")
-                st.write(f"**Disciplina:** {reg['Disciplina']}")
-                
-                # BOTÃO DO PDF AQUI
+            with col_p:
                 pdf_bytes = gerar_pdf(reg.to_dict())
                 st.download_button(
-                    label="📥 Baixar Relatório em PDF",
+                    label="📥 Baixar PDF",
                     data=pdf_bytes,
-                    file_name=f"Relatorio_{reg['Campus']}_{id_sel}.pdf",
+                    file_name=f"Relatorio_{id_sel}.pdf",
                     mime="application/pdf"
                 )
-    except Exception as e:
-        st.error(f"Erro ao carregar banco de dados: {e}")
+    except:
+        st.error("Erro ao carregar banco de dados. Verifique o link da sua planilha.")
 
 # --- RODAPÉ ---
 st.markdown("<br><hr><div style='text-align: center; color: gray;'><strong>Desenvolvido por:</strong><br>Thiago Messias Carvalho Soares & Roger Ramos Santana<br>PRODIN - IFBA 2026</div>", unsafe_allow_html=True)
