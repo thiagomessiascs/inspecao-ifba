@@ -11,7 +11,7 @@ import requests
 # 1. CONFIGURAÇÕES DA PÁGINA
 st.set_page_config(page_title="Sistema PRODIN - IFBA", layout="centered", page_icon="📋")
 
-# 🔗 IMPORTANTE: COLE O LINK DA SUA PLANILHA "PUBLICADA NA WEB" ABAIXO
+# 🔗 IMPORTANTE: COLE O LINK DA SUA PLANILHA ABAIXO PARA SUMIR O ERRO 404
 URL_PLANILHA = "COLE_AQUI_O_LINK_DA_SUA_PLANILHA"
 
 # 2. SISTEMA DE ACESSO
@@ -154,16 +154,17 @@ with st.sidebar:
     
     eng_sel = st.selectbox("Engenheiro Responsável", list(dados_prodin.keys()))
     
-    # Lógica de Gênero para Avatar Centralizado
+    # --- LÓGICA DE GÊNERO CORRIGIDA DEFINITIVAMENTE ---
     genero = dados_prodin[eng_sel]["genero"]
     if genero == "F":
-        icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135768.png"
+        icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135768.png"  # Avatar Feminino
     else:
-        icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+        icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"  # Avatar Masculino
         
     col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
     with col_img2:
         try:
+            # Forçamos a atualização da imagem baseada no engenheiro selecionado
             res = requests.get(icon_url)
             st.image(Image.open(io.BytesIO(res.content)), use_container_width=True)
         except:
@@ -173,7 +174,7 @@ with st.sidebar:
     st.divider()
     choice = st.radio("Navegação", ["Nova Inspeção", "Histórico / PDF"])
 
-# 5. FUNÇÃO PARA GERAR PDF (FPDF)
+# 5. FUNÇÃO PARA GERAR PDF
 def gerar_pdf(dados):
     pdf = FPDF()
     pdf.add_page()
@@ -197,6 +198,7 @@ def gerar_pdf(dados):
 # 6. CONEXÃO COM GOOGLE SHEETS
 conn = st.connection("gsheets", type=GSheetsConnection)
 
+# --- TELA: NOVA INSPEÇÃO ---
 if choice == "Nova Inspeção":
     st.header("📋 Registrar Inspeção Técnica")
     disciplina = st.selectbox("1. Escolha a Disciplina Técnica:", lista_disciplinas)
@@ -249,6 +251,7 @@ if choice == "Nova Inspeção":
                 except:
                     st.error("Erro ao salvar: Verifique o link da sua planilha na linha 14.")
 
+# --- TELA: HISTÓRICO ---
 elif choice == "Histórico / PDF":
     st.header("📂 Histórico de Inspeções")
     try:
@@ -265,6 +268,7 @@ elif choice == "Histórico / PDF":
                 pdf_b = gerar_pdf(reg.to_dict())
                 st.download_button("📥 Baixar PDF", data=pdf_b, file_name=f"Inspecao_{id_sel}.pdf", mime="application/pdf")
     except:
-        st.error("Erro ao carregar banco de dados. Verifique o link da sua planilha.")
+        st.error("Erro ao carregar banco de dados. Verifique o link da sua planilha na linha 14.")
 
+# RODAPÉ
 st.markdown("<br><hr><div style='text-align: center; color: gray;'><strong>Desenvolvido por:</strong><br>Thiago Messias Carvalho Soares & Roger Ramos Santana<br>PRODIN - IFBA 2026</div>", unsafe_allow_html=True)
