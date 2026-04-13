@@ -29,14 +29,14 @@ if not st.session_state['autenticado']:
             st.error("Senha incorreta!")
     st.stop()
 
-# 3. BANCO DE DADOS TÉCNICO E MAPEAMENTO (SUPER AMPLIADO E CORRIGIDO)
-mapa_engenheiros = {
-    "Eng. Thiago": "M",
-    "Eng. Roger": "M",
-    "Eng. Laís": "F",
-    "Eng. Larissa": "F",
-    "Eng. Marcelo": "M",
-    "Eng. Fenelon": "M"
+# 3. MAPEAMENTO TÉCNICO (ENGENHEIROS, GÊNERO E CAMPUS DO MAPA)
+dados_prodin = {
+    "Eng. Thiago": {"genero": "M", "campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"]},
+    "Eng. Roger": {"genero": "M", "campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"]},
+    "Eng. Laís": {"genero": "F", "campi": ["Barreiras", "Jaguaquara", "Jequié"]},
+    "Eng. Larissa": {"genero": "F", "campi": ["Campo Formoso", "Juazeiro", "Casa Nova", "Ilhéus", "Ubaitaba", "Camacan"]},
+    "Eng. Marcelo": {"genero": "M", "campi": ["Brumado", "Vitória da Conquista"]},
+    "Eng. Fenelon": {"genero": "M", "campi": ["Camaçari", "Lauro de Freitas", "Santo Antônio de Jesus", "Simões Filho", "Valença"]}
 }
 
 sugestoes = {
@@ -148,34 +148,34 @@ sugestoes = {
 
 lista_disciplinas = ["Escolha..."] + list(sugestoes.keys()) + ["Outras"]
 
-# 4. BARRA LATERAL (SIDEBAR) COM LÓGICA DE GÊNERO CORRIGIDA
+# 4. BARRA LATERAL (SIDEBAR) - CENTRALIZAÇÃO E LÓGICA DE CAMPUS
 with st.sidebar:
-    st.title("⚙️ PRODIN - IFBA")
+    st.markdown("<h1 style='text-align: center;'>⚙️ PRODIN - IFBA</h1>", unsafe_allow_html=True)
     
-    eng_sel = st.selectbox("Engenheiro Responsável", list(mapa_engenheiros.keys()))
+    # 4.1 Seleção do Engenheiro
+    eng_sel = st.selectbox("Engenheiro Responsável", list(dados_prodin.keys()))
     
-    # --- LÓGICA DE AVATAR SEM CAPACETE CORRIGIDA ---
-    genero = mapa_engenheiros[eng_sel]
-    
+    # 4.2 Avatar Centralizado e Dinâmico (Homem/Mulher profissional)
+    genero = dados_prodin[eng_sel]["genero"]
     if genero == "M":
-        # Ícone de Homem Profissional (sem capacete)
         icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
     else:
-        # Ícone de Mulher Profissional (sem capacete, corrigido)
         icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135768.png"
         
-    try:
-        # Baixa e exibe a imagem de forma estável
-        response = requests.get(icon_url)
-        img_avatar = Image.open(io.BytesIO(response.content))
-        st.image(img_avatar, width=120)
-    except:
-        # Fallback caso o link quebre
-        st.write("👨‍💼" if genero == "M" else "👩‍💼")
-    # ------------------------------------------------------------------
+    col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
+    with col_img2:
+        try:
+            res = requests.get(icon_url)
+            st.image(Image.open(io.BytesIO(res.content)), use_container_width=True)
+        except:
+            st.write("👤")
 
-    campus_sel = st.selectbox("Campus", ["Euclides da Cunha", "Feira de Santana", "Salvador", "Camaçari", "Vitória da Conquista", "Santo Amaro", "Simões Filho", "Eunápolis"])
-    choice = st.sidebar.radio("Navegação", ["Nova Inspeção", "Histórico / PDF"])
+    # 4.3 Campus Dinâmico (Muda conforme o Engenheiro Selecionado)
+    lista_campi = dados_prodin[eng_sel]["campi"]
+    campus_sel = st.selectbox("Campus", lista_campi)
+    
+    st.divider()
+    choice = st.radio("Navegação", ["Nova Inspeção", "Histórico / PDF"])
 
 # 5. CONEXÃO E FUNÇÕES
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -189,20 +189,17 @@ def gerar_pdf(dados):
     pdf.set_font("Arial", size=10)
     for k, v in dados.items():
         if k != "Foto_Dados":
-            pdf.set_font("Arial", 'B', 10)
-            pdf.cell(50, 7, f"{k}:", 0)
-            pdf.set_font("Arial", size=10)
-            pdf.multi_cell(0, 7, f"{str(v)}", 0)
+            pdf.set_font("Arial", 'B', 10); pdf.cell(50, 7, f"{k}:", 0)
+            pdf.set_font("Arial", size=10); pdf.multi_cell(0, 7, f"{str(v)}", 0)
     return pdf.output(dest='S').encode('latin-1')
 
 # --- TELA: NOVA INSPEÇÃO ---
 if choice == "Nova Inspeção":
     st.header("📋 Registrar Inspeção Técnica")
     
-    # Interatividade fora do form para carregar patologias automático
     disciplina = st.selectbox("1. Escolha a Disciplina Técnica:", lista_disciplinas)
     
-    with st.form("form_vFinal_Super", clear_on_submit=True):
+    with st.form("form_prodin_final", clear_on_submit=True):
         col_ed, col_dt = st.columns([2, 1])
         with col_ed:
             edificacao = st.selectbox("Edificação / Bloco", ["Pavilhão de Aulas", "Pavilhão Administrativo", "Refeitório", "Ginásio", "Muro", "Estacionamento", "Guarita", "Galpão Industrial", "Usina de Biodiesel", "Usina Solar"])
@@ -216,98 +213,59 @@ if choice == "Nova Inspeção":
             sala_num = st.text_input("Nº Sala", placeholder="Ex: 102")
 
         ambiente_final = f"{ambiente} - {sala_num}" if sala_num else ambiente
-        
-        desc_final = ""
-        sol_final = ""
+        desc_final, sol_final = "", ""
 
-        # Lógica de Botões Automáticos de Patologia
         if disciplina in sugestoes:
-            st.markdown(f"---")
-            st.info(f"Opções Técnicas para {disciplina}")
+            st.divider()
             pat_sel = st.selectbox("Patologia Identificada:", sugestoes[disciplina]['Problemas'])
             desc_final = st.text_area("Detalhamento da Patologia:", value=pat_sel)
-            
             sol_sel = st.selectbox("Solução Recomendada:", sugestoes[disciplina]['Soluções'])
-            sol_final = st.text_area("Sugestão de Encaminhamento:", value=sol_sel)
+            sol_final = st.text_area("Encaminhamento:", value=sol_sel)
         
         elif disciplina == "Outras":
             desc_final = st.text_area("Descreva a Patologia:")
-            sol_final = st.text_area("Descreva a Solução Sugerida:")
+            sol_final = st.text_area("Descreva a Solução:")
 
         foto = st.file_uploader("📸 Foto da Evidência", type=['jpg', 'jpeg', 'png'])
 
         if st.form_submit_button("✅ Salvar na Planilha"):
             if disciplina == "Escolha...":
-                st.error("Por favor, selecione a disciplina acima!")
+                st.error("Por favor, selecione a disciplina!")
             else:
                 foto_b64 = ""
                 if foto:
-                    img = Image.open(foto)
-                    # Redimensiona mantendo a proporção para não estourar a planilha
-                    img.thumbnail((700, 700)) 
-                    buf = io.BytesIO()
-                    img.save(buf, format="JPEG", quality=70)
+                    img = Image.open(foto); img.thumbnail((700, 700))
+                    buf = io.BytesIO(); img.save(buf, format="JPEG", quality=70)
                     foto_b64 = base64.b64encode(buf.getvalue()).decode()
 
                 novo_reg = pd.DataFrame([{
-                    "Data": data_ins.strftime("%d/%m/%Y"), 
-                    "Campus": campus_sel, 
-                    "Edificacao": edificacao, 
-                    "Disciplina": disciplina, 
-                    "Ambiente": ambiente_final,
-                    "Descricao": desc_final, 
-                    "Solucoes": sol_final, 
-                    "Engenheiro": eng_sel, 
-                    "Foto_Dados": foto_b64
+                    "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, "Edificacao": edificacao, 
+                    "Disciplina": disciplina, "Ambiente": ambiente_final, "Descricao": desc_final, 
+                    "Solucoes": sol_final, "Engenheiro": eng_sel, "Foto_Dados": foto_b64
                 }])
-
                 try:
                     df = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
                     df_f = pd.concat([df, novo_reg], ignore_index=True)
                     conn.update(spreadsheet=URL_PLANILHA, data=df_f)
-                    st.success("✅ Registro salvo com sucesso na planilha!")
+                    st.success("✅ Registro salvo com sucesso!")
                 except Exception as e:
-                    st.error(f"Erro ao conectar com a planilha: {e}")
+                    st.error(f"Erro ao salvar: {e}")
 
 # --- TELA: HISTÓRICO ---
-elif choice == "Histórico / Gerar PDF":
+elif choice == "Histórico / PDF":
     st.header("📂 Histórico de Inspeções")
     try:
         df = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
-        # Exibe a tabela sem a coluna gigante de texto da foto
         st.dataframe(df.drop(columns=['Foto_Dados'], errors='ignore'), use_container_width=True)
-        
         if not df.empty:
-            st.divider()
-            id_sel = st.selectbox("Selecione o ID para ver detalhes:", df.index)
+            id_sel = st.selectbox("Selecione o ID para detalhes:", df.index)
             reg = df.iloc[id_sel]
-            
-            c1, c2 = st.columns([1, 1])
-            with c1:
-                if reg["Foto_Dados"]:
-                    st.image(base64.b64decode(reg["Foto_Dados"]), caption="Evidência", use_container_width=True)
-            with c2:
-                st.write(f"**Engenheiro:** {reg['Engenheiro']}")
-                st.write(f"**Data:** {reg['Data']}")
-                st.write(f"**Descrição:** {reg['Descricao']}")
-                
-                # Gerador de PDF
-                pdf_bytes = gerar_pdf(reg.to_dict())
-                st.download_button(label="📥 Baixar PDF", data=pdf_bytes, 
-                                 file_name=f"Inspecao_{reg['Campus']}_{id_sel}.pdf", mime="application/pdf")
-    except Exception as e:
-        st.error(f"Não foi possível carregar o banco de dados: {e}")
+            if reg["Foto_Dados"]:
+                st.image(base64.b64decode(reg["Foto_Dados"]), width=300)
+            pdf_bytes = gerar_pdf(reg.to_dict())
+            st.download_button("📥 Baixar PDF", data=pdf_bytes, file_name=f"Inspecao_{id_sel}.pdf")
+    except:
+        st.error("Erro ao carregar banco de dados.")
 
-# --- RODAPÉ CENTRALIZADO NA PÁGINA ---
-st.markdown("<br><br>", unsafe_allow_html=True)
-st.divider()
-st.markdown(
-    """
-    <div style="text-align: center; color: #6d6d6d; font-size: 1.1em; line-height: 1.5;">
-        <strong>Desenvolvido por:</strong><br>
-        Thiago Messias Carvalho Soares & Roger Ramos Santana<br>
-        <strong style="color: #2e7d32;">PRODIN - IFBA 2026</strong>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+# --- RODAPÉ ---
+st.markdown("<br><hr><div style='text-align: center; color: gray;'><strong>Desenvolvido por:</strong><br>Thiago Messias Carvalho Soares & Roger Ramos Santana<br>PRODIN - IFBA 2026</div>", unsafe_allow_html=True)
