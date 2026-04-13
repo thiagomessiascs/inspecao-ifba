@@ -29,7 +29,8 @@ if not st.session_state['autenticado']:
             st.error("Senha incorreta!")
     st.stop()
 
-# 3. MAPEAMENTO TÉCNICO COMPLETO
+# 3. MAPEAMENTO TÉCNICO (ENGENHEIROS, GÊNERO E CAMPUS)
+# Certificando que Laís e Larissa estão com "F"
 dados_prodin = {
     "Eng. Thiago": {"genero": "M", "campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"]},
     "Eng. Roger": {"genero": "M", "campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"]},
@@ -152,26 +153,24 @@ lista_disciplinas = ["Escolha..."] + list(sugestoes.keys()) + ["Outras"]
 with st.sidebar:
     st.markdown("<h1 style='text-align: center;'>⚙️ PRODIN - IFBA</h1>", unsafe_allow_html=True)
     
+    # Selectbox do Engenheiro
     eng_sel = st.selectbox("Engenheiro Responsável", list(dados_prodin.keys()))
     
-    # --- LOGICA DE AVATAR À PROVA DE ERROS ---
+    # --- LOGICA DE AVATAR REFORÇADA (FORCE REFRESH) ---
     genero = dados_prodin[eng_sel]["genero"]
     
-    # Links novos e distintos para garantir a mudança visual
+    # Usando links de cores diferentes para garantir que o navegador note a mudança
     if genero == "F":
-        # Ícone de mulher engenheira
-        url_img = "https://cdn-icons-png.flaticon.com/512/3135/3135768.png"
+        # Ícone de mulher com fundo ROXO
+        img_url = "https://img.icons8.com/bubbles/200/businesswoman.png"
     else:
-        # Ícone de homem engenheiro
-        url_img = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+        # Ícone de homem com fundo AZUL
+        img_url = "https://img.icons8.com/bubbles/200/businessman.png"
         
     col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
     with col_img2:
-        try:
-            # O parâmetro '?v=' força o Streamlit a recarregar a imagem do servidor
-            st.image(f"{url_img}?v={eng_sel.replace(' ', '')}", use_container_width=True)
-        except:
-            st.write("👤")
+        # O truque final: Adicionamos o nome do engenheiro no link para invalidar o cache
+        st.image(f"{img_url}?unique={eng_sel.replace(' ', '')}", use_container_width=True)
 
     campus_sel = st.selectbox("Campus", dados_prodin[eng_sel]["campi"])
     st.divider()
@@ -198,9 +197,10 @@ def gerar_pdf(dados):
         except: pass
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
-# 6. CONEXÃO
+# 6. CONEXÃO COM GOOGLE SHEETS
 conn = st.connection("gsheets", type=GSheetsConnection)
 
+# --- TELA: NOVA INSPEÇÃO ---
 if choice == "Nova Inspeção":
     st.header("📋 Registrar Inspeção Técnica")
     disciplina = st.selectbox("1. Escolha a Disciplina Técnica:", lista_disciplinas)
@@ -249,10 +249,11 @@ if choice == "Nova Inspeção":
                     df = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
                     df_f = pd.concat([df, novo_reg], ignore_index=True)
                     conn.update(spreadsheet=URL_PLANILHA, data=df_f)
-                    st.success("✅ Registro salvo!")
+                    st.success("✅ Registro salvo com sucesso!")
                 except:
-                    st.error("Erro ao salvar. Verifique o link da planilha.")
+                    st.error("Erro ao salvar: Verifique o link da sua planilha na linha 14.")
 
+# --- TELA: HISTÓRICO ---
 elif choice == "Histórico / PDF":
     st.header("📂 Histórico de Inspeções")
     try:
@@ -266,5 +267,5 @@ elif choice == "Histórico / PDF":
     except:
         st.error("Erro ao carregar banco de dados.")
 
-# 7. RODAPÉ
+# RODAPÉ
 st.markdown("<br><hr><div style='text-align: center; color: gray;'><strong>Desenvolvido por:</strong><br>Thiago Messias Carvalho Soares & Roger Ramos Santana<br>PRODIN - IFBA 2026</div>", unsafe_allow_html=True)
