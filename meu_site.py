@@ -11,7 +11,7 @@ import os
 # 1. CONFIGURAÇÕES DA PÁGINA
 st.set_page_config(page_title="Sistema de Inspeção IFBA", layout="centered", page_icon="📋")
 
-# 2. SISTEMA DE LOGIN
+# 2. SISTEMA DE LOGIN (Senha: IFBA2026)
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
@@ -23,15 +23,13 @@ def login():
             st.session_state['autenticado'] = True
             st.rerun()
         else:
-            st.error("Senha incorreta! Tente novamente.")
+            st.error("Senha incorreta!")
 
 if not st.session_state['autenticado']:
     login()
     st.stop()
 
-# --- ÁREA RESTRITA ---
-
-# 3. FUNÇÃO PARA UPLOAD NO GOOGLE DRIVE
+# 3. FUNÇÃO DE UPLOAD PARA O DRIVE
 def upload_to_drive(file_path, file_name):
     try:
         info = st.secrets["gcp_service_account"]
@@ -47,78 +45,72 @@ def upload_to_drive(file_path, file_name):
         
         return file.get('webViewLink')
     except Exception as e:
-        st.error(f"Erro ao enviar para o Drive: {e}")
+        st.error(f"Erro no Drive: {e}")
         return None
 
-# 4. CONEXÃO COM GOOGLE SHEETS
-conn = st.connection("gsheets", type=GSheetsConnection)
-
-def load_data():
-    return conn.read(ttl=0)
-
-# 5. CONFIGURAÇÃO DOS ENGENHEIROS E CAMPI NA BARRA LATERAL
-st.sidebar.title("⚙️ Configurações")
-
-# Dicionário relacionando Campus -> Engenheiro
-mapa_campus_eng = {
-    "Poções": "Eng. Thiago Messias Carvalho Soares",
-    "Feira de Santana": "Eng. Thiago Messias Carvalho Soares",
-    "Euclides da Cunha": "Eng. Thiago Messias Carvalho Soares",
-    "Barreiras": "Eng. Roger Ramos Santana",
-    "Brumado": "Eng. Roger Ramos Santana",
-    "Jacobina": "Eng. Roger Ramos Santana"
+# 4. MAPEAMENTO COMPLETO (BASEADO NO BANNER DO PRODIN)
+mapa_prodin = {
+    "Eng. Thiago": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"],
+    "Eng. Roger": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"],
+    "Eng. Laís": ["Barreiras", "Jaguaquara", "Jequié"],
+    "Eng. Larissa": ["Campo Formoso", "Juazeiro", "Casa Nova", "Ilhéus", "Ubaitaba", "Camacã"],
+    "Eng. Marcelo": ["Brumado", "Vitória da Conquista"],
+    "Eng. Fenelon": ["Camaçari", "Lauro de Freitas", "Santo Antônio de Jesus", "Simões Filho", "Valença"],
+    "Eng. do Local": ["Salvador", "Reitoria", "Polo de Inovação", "Salinas da Margarida", "São Desidério"]
 }
 
-# Seleção do Campus na Lateral
-campus_selecionado = st.sidebar.selectbox("Selecione o Campus da Inspeção", list(mapa_campus_eng.keys()))
+# 5. BARRA LATERAL (SIDEBAR)
+st.sidebar.title("⚙️ Painel de Controle")
 
-# Define o Engenheiro automaticamente baseado no Campus selecionado
-engenheiro_responsavel = mapa_campus_eng[campus_selecionado]
+# Selecionar Engenheiro
+lista_engenheiros = list(mapa_prodin.keys())
+eng_selecionado = st.sidebar.selectbox("Engenheiro Responsável", lista_engenheiros)
 
-st.sidebar.markdown(f"**Engenheiro Responsável:** \n\n {engenheiro_responsavel}")
+# Selecionar Campus (Filtra apenas os campi daquele engenheiro)
+lista_campi = mapa_prodin[eng_selecionado]
+campus_selecionado = st.sidebar.selectbox("Campus", lista_campi)
 
-# Navegação entre abas
 st.sidebar.markdown("---")
 choice = st.sidebar.radio("Navegação", ["Nova Inspeção", "Histórico de Registros"])
 
-if st.sidebar.button("Sair/Logout"):
+if st.sidebar.button("Sair"):
     st.session_state['autenticado'] = False
     st.rerun()
 
-# 6. INTERFACE PRINCIPAL
-st.title("📋 Sistema de Inspeção Predial")
-st.markdown(f"**Campus:** {campus_selecionado} | **Responsável:** {engenheiro_responsavel}")
+# 6. CONEXÃO E INTERFACE PRINCIPAL
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+st.title("📋 Inspeção Predial - IFBA")
+st.subheader(f"Responsável: {eng_selecionado} | Campus: {campus_selecionado}")
 
 if choice == "Nova Inspeção":
     with st.form("form_inspecao", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
             edificacao = st.text_input("Edificação / Bloco")
-            disciplina = st.text_input("Disciplina (Ex: Hidráulica)")
+            disciplina = st.text_input("Disciplina (Ex: Alvenaria)")
         with col2:
-            data_inspecao = st.date_input("Data da Inspeção", datetime.now())
+            data_ins = st.date_input("Data", datetime.now())
             ambiente = st.text_input("Ambiente / Sala")
 
-        descricao = st.text_area("Descrição do Problema Detectado")
+        descricao = st.text_area("Descrição do Problema")
         solucoes = st.text_area("Sugestão de Solução")
         
-        foto_arquivo = st.camera_input("📸 Registrar Foto da Evidência")
+        foto_arquivo = st.camera_input("📸 Foto da Evidência")
 
         if st.form_submit_button("✅ Salvar Registro"):
-            link_drive = "Sem foto"
+            link_foto = "Sem foto"
             if foto_arquivo:
-                with st.spinner("Enviando foto ao Drive..."):
-                    temp_name = f"temp_{datetime.now().timestamp()}.jpg"
-                    with open(temp_name, "wb") as f:
-                        f.write(foto_arquivo.getbuffer())
-                    
-                    nome_f = f"Inspecao_{campus_selecionado}_{datetime.now().strftime('%d-%m-%Y_%H-%M')}.jpg"
-                    link_drive = upload_to_drive(temp_name, nome_f)
-                    if os.path.exists(temp_name): os.remove(temp_name)
+                with st.spinner("Enviando foto..."):
+                    temp = f"temp_{datetime.now().timestamp()}.jpg"
+                    with open(temp, "wb") as f: f.write(foto_arquivo.getbuffer())
+                    nome_f = f"Inspecao_{campus_selecionado}_{datetime.now().strftime('%d-%m-%y')}.jpg"
+                    link_foto = upload_to_drive(temp, nome_f)
+                    if os.path.exists(temp): os.remove(temp)
 
-            # Salva na planilha respeitando a ordem das colunas (Data, Campus, Edificacao, Disciplina, Ambiente, Descricao, Solucoes, Foto, Engenheiro, Link_Foto)
+            # Salva na Planilha conforme suas colunas (A a L)
             novo_dado = pd.DataFrame([{
-                "Data": data_inspecao.strftime("%d/%m/%Y"),
+                "Data": data_ins.strftime("%d/%m/%Y"),
                 "Campus": campus_selecionado,
                 "Edificacao": edificacao,
                 "Disciplina": disciplina,
@@ -126,41 +118,28 @@ if choice == "Nova Inspeção":
                 "Descricao": descricao,
                 "Solucoes": solucoes,
                 "Foto": "Anexada" if foto_arquivo else "Nenhuma",
-                "Engenheiro": engenheiro_responsavel,
-                "Link_Foto": link_drive
+                "Engenheiro": eng_selecionado,
+                "Link_Foto": link_foto
             }])
 
-            df_final = pd.concat([load_data(), novo_dado], ignore_index=True)
+            df_atual = conn.read(ttl=0)
+            df_final = pd.concat([df_atual, novo_dado], ignore_index=True)
             conn.update(data=df_final)
-            st.success("✅ Registro e Foto salvos com sucesso!")
+            st.success("Dados salvos com sucesso!")
 
 elif choice == "Histórico de Registros":
-    df = load_data()
+    df = conn.read(ttl=0)
     if not df.empty:
         st.dataframe(df, use_container_width=True)
         st.divider()
-        st.markdown("### Detalhes do Registro")
-        id_linha = st.selectbox("Selecione o ID para análise:", df.index)
+        id_linha = st.selectbox("Selecione o ID para ver a foto:", df.index)
         reg = df.iloc[id_linha]
         
-        c1, c2 = st.columns(2)
-        with c1:
-            st.write(f"**Campus:** {reg['Campus']}")
-            st.write(f"**Engenheiro:** {reg['Engenheiro']}")
-            st.write(f"**Problema:** {reg['Descricao']}")
-        with c2:
-            link = reg.get('Link_Foto', "")
-            if str(link).startswith("http"):
-                st.image(link, caption="Foto da Evidência", use_container_width=True)
-            else:
-                st.warning("Registro sem foto anexada.")
+        if str(reg.get('Link_Foto', "")).startswith("http"):
+            st.image(reg['Link_Foto'], caption="Evidência Fotográfica", width=500)
+        else:
+            st.warning("Este registro não possui foto.")
 
 # RODAPÉ
 st.sidebar.markdown("---")
-st.sidebar.info(f"""
-**Desenvolvido por:**
-* Thiago Messias Carvalho Soares
-* Roger Ramos Santana
-
-*IFBA - 2026*
-""")
+st.sidebar.info("Desenvolvido por:\n\nThiago Carvalho & Roger Ramos\n\nPRODIN - IFBA 2026")
