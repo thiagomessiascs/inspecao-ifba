@@ -12,9 +12,8 @@ import os
 # 1. CONFIGURAÇÕES DA PÁGINA
 st.set_page_config(page_title="Sistema PRODIN - IFBA", layout="centered", page_icon="📋")
 
-# 🔗 CONFIGURAÇÕES DE LINKS - ATUALIZADO PARA A NOVA PLANILHA
+# 🔗 CONFIGURAÇÕES DE LINKS - ATUALIZADO PARA A NOVA PLANILHA NO PRODINEMCAMPUS
 URL_PLANILHA = "https://docs.google.com/spreadsheets/d/1i2-Sd9853TrdgUGso9QRX5sKD7kFmsbuqih9FIF-7F8/edit#gid=0"
-NOME_ABA = "Página1" # Certifique-se que o nome na aba da planilha é este
 URL_LOGO_IFBA = "https://portal.ifba.edu.br/dgcom/documentos-e-manuais-arquivos/manuais/ifba_marca_vertical-01.png/@@download/file/IFBA_MARCA_vertical-01.png"
 NOME_ARQUIVO_LOGO = "logo_ifba_vertical.png"
 
@@ -96,7 +95,7 @@ def gerar_pdf(dados):
     
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
-# 5. INTERFACE
+# 5. INTERFACE E CONEXÃO
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 with st.sidebar:
@@ -139,6 +138,7 @@ if nav == "Nova Inspeção":
                 buf = io.BytesIO(); img.save(buf, format="JPEG", quality=70)
                 f_b64 = base64.b64encode(buf.getvalue()).decode()
             
+            # DICIONÁRIO EXATAMENTE IGUAL AOS CABEÇALHOS DA PLANILHA
             reg = {
                 "Data": data_ins.strftime("%d/%m/%Y"), 
                 "Campus": campus_sel, 
@@ -154,27 +154,34 @@ if nav == "Nova Inspeção":
             }
             
             try:
-                # Lendo a nova planilha e aba
-                df = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
-                # Concatenando o novo registro
-                novo_df = pd.concat([df, pd.DataFrame([reg])], ignore_index=True)
-                # Atualizando a planilha
-                conn.update(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, data=novo_df)
-                st.success("Inspeção salva com sucesso na nova planilha!")
+                # 1. TENTA LER A PLANILHA (Aba Página1)
+                df = conn.read(spreadsheet=URL_PLANILHA, worksheet="Página1", ttl=0)
+                
+                # 2. CRIA O NOVO DATAFRAME COM O REGISTRO
+                novo_reg_df = pd.DataFrame([reg])
+                
+                # 3. CONCATENA E ATUALIZA
+                df_atualizado = pd.concat([df, novo_reg_df], ignore_index=True)
+                conn.update(spreadsheet=URL_PLANILHA, worksheet="Página1", data=df_atualizado)
+                
+                st.success("✅ Inspeção salva com sucesso na planilha do IFBA!")
                 st.session_state['ultimo'] = reg
             except Exception as e:
-                st.error(f"Erro ao salvar: {e}")
+                st.error(f"❌ Erro ao salvar: Verifique se a conta prodin-uploader@... é EDITOR da planilha. Erro: {e}")
 
     if 'ultimo' in st.session_state:
-        st.download_button("📥 Baixar PDF", data=gerar_pdf(st.session_state['ultimo']), file_name="Relatorio.pdf")
+        st.download_button("📥 Baixar PDF", data=gerar_pdf(st.session_state['ultimo']), file_name=f"Relatorio_{campus_sel}.pdf")
 
 elif nav == "Histórico":
     st.header(f"📂 Histórico: {campus_sel}")
     try:
-        df = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
+        df = conn.read(spreadsheet=URL_PLANILHA, worksheet="Página1", ttl=0)
         df_f = df[df['Campus'] == campus_sel]
-        st.dataframe(df_f.drop(columns=['Foto_Dados'], errors='ignore'))
+        if not df_f.empty:
+            st.dataframe(df_f.drop(columns=['Foto_Dados'], errors='ignore'))
+        else:
+            st.info("Nenhum registro encontrado para este campus.")
     except:
-        st.warning("Não foi possível carregar o histórico desta planilha.")
+        st.warning("Não foi possível carregar os dados. Verifique a conexão com o Google Sheets.")
 
 st.markdown("<hr><center>Desenvolvido por: Thiago Messias Carvalho Soares & Roger Ramos Santana | PRODIN 2026</center>", unsafe_allow_html=True)
