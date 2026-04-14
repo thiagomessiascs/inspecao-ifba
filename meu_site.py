@@ -7,12 +7,15 @@ from PIL import Image
 import io
 from fpdf import FPDF
 import requests
+import os
 
 # 1. CONFIGURAÇÕES DA PÁGINA
 st.set_page_config(page_title="Sistema PRODIN - IFBA", layout="centered", page_icon="📋")
 
-# 🔗 IMPORTANTE: COLE O LINK DA SUA PLANILHA "PUBLICADA NA WEB" ABAIXO
+# 🔗 CONFIGURAÇÕES DE LINKS E LOGO OFICIAL
 URL_PLANILHA = "COLE_AQUI_O_LINK_DA_SUA_PLANILHA"
+URL_LOGO_IFBA = "https://portal.ifba.edu.br/dgcom/documentos-e-manuais-arquivos/manuais/ifba_marca_vertical-01.png/@@download/file/IFBA_MARCA_vertical-01.png"
+NOME_ARQUIVO_LOGO = "logo_ifba_vertical.png"
 
 # 2. SISTEMA DE ACESSO
 if 'autenticado' not in st.session_state:
@@ -29,7 +32,7 @@ if not st.session_state['autenticado']:
             st.error("Senha incorreta!")
     st.stop()
 
-# 3. MAPEAMENTO TÉCNICO (ENGENHEIROS, GÊNERO E CAMPUS)
+# 3. MAPEAMENTO TÉCNICO E BANCO DE PATOLOGIAS EXPANDIDO
 dados_prodin = {
     "Eng. Thiago": {"genero": "M", "campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"]},
     "Eng. Roger": {"genero": "M", "campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"]},
@@ -41,182 +44,124 @@ dados_prodin = {
 
 sugestoes = {
     'Alvenaria': {
-        'Problemas': [
-            'Fissuras de retração térmica', 'Trincas em diagonal (esforço estrutural)', 'Umidade por capilaridade (rodapé)', 
-            'Eflorescência (sais brancos)', 'Desaprumo evidente', 'Descolamento de argamassa', 'Fissuras em H (esmagamento)', 
-            'Presença de mofo/bolor', 'Furos/Aberturas sem vedação', 'Fissuras horizontais (sobrecarga)', 'Destacamento de blocos'
-        ],
-        'Soluções': [
-            'Tratamento com tela de poliéster e selante', 'Grampeamento com barras de aço', 'Impermeabilização polimérica', 
-            'Limpeza química e hidrofugação', 'Regularização de prumo', 'Reforço de vergas', 'Tratamento biocida', 
-            'Vedação com espuma expansiva/PU', 'Injeção de resina', 'Reforço estrutural da parede'
-        ]
+        'Problemas': ['Fissuras de retração térmica', 'Trincas em diagonal (esforço estrutural)', 'Umidade por capilaridade (rodapé)', 'Eflorescência (sais brancos)', 'Desaprumo evidente', 'Descolamento de argamassa', 'Fissuras em H (esmagamento)', 'Presença de mofo/bolor', 'Fissuras horizontais (sobrecarga)'],
+        'Soluções': ['Tratamento com tela de poliéster e selante', 'Grampeamento com barras de aço', 'Impermeabilização polimérica', 'Limpeza química e hidrofugação', 'Regularização de prumo', 'Tratamento biocida', 'Injeção de resina', 'Reforço estrutural da parede']
     },
     'Estrutura': {
-        'Problemas': [
-            'Corrosão de armaduras (expansão)', 'Exposição de ferragem oxidada', 'Segregação do concreto (bicheiras)', 
-            'Flechas excessivas (deformação)', 'Fissuras de cisalhamento em vigas', 'Desagregação por ataque químico',
-            'Ninhos de concretagem', 'Trincas em pilares', 'Esmagamento de apoio', 'Carbonatação do concreto'
-        ],
-        'Soluções': [
-            'Escovamento, passivação e recomposição estrutural', 'Tratamento anticorrosivo e grauteamento', 
-            'Limpeza e preenchimento com graute fluido', 'Escoramento e reforço com fibra de carbono', 'Injeção de resina de epóxi', 
-            'Remoção de concreto degradado', 'Reparo tixotrópico', 'Jaquetamento de pilar', 'Aumento de seção'
-        ]
-    },
-    'Pavimentação': {
-        'Problemas': [
-            'Peças soltas/quebradas', 'Buracos/Panelas (potholes)', 'Desnível por recalque', 'Trincas couro de jacaré', 
-            'Exsudação de ligante', 'Meio-fio deslocado', 'Acúmulo de lama/areia', 'Falta de rejuntamento', 'Afundamento de trilha'
-        ],
-        'Soluções': [
-            'Recomposição de base e travamento', 'Tapa-buraco asfáltico', 'Compactação de base e correção de cota', 
-            'Fresagem e recapeamento', 'Aplicação de agregados', 'Alinhamento de guias', 'Limpeza e varredura', 'Selagem de trincas'
-        ]
+        'Problemas': ['Corrosão de armaduras (expansão)', 'Exposição de ferragem oxidada', 'Segregação do concreto (bicheiras)', 'Flechas excessivas (deformação)', 'Fissuras de cisalhamento em vigas', 'Desagregação por ataque químico', 'Ninhos de concretagem', 'Carbonatação do concreto'],
+        'Soluções': ['Escovamento, passivação e recomposição estrutural', 'Tratamento anticorrosivo e grauteamento', 'Limpeza e preenchimento com graute fluido', 'Escoramento e reforço com fibra de carbono', 'Injeção de resina de epóxi', 'Jaquetamento de pilar']
     },
     'Cobertura': {
-        'Problemas': [
-            'Telhas quebradas/fissuradas', 'Telhas deslocadas (vento)', 'Calhas obstruídas', 'Corrosão em calhas metálicas', 
-            'Infiltração em rufos', 'Estrutura metálica com oxidação', 'Madeiramento com cupim/podridão', 'Pontos de goteira'
-        ],
-        'Soluções': [
-            'Substituição das peças avariadas', 'Revisão de fixação', 'Limpeza e desobstrução manual', 
-            'Pintura betuminosa ou troca', 'Substituição de rufos e PU 40', 'Lixamento e pintura anticorrosiva', 'Imunização química'
-        ]
-    },
-    'Revestimento': {
-        'Problemas': [
-            'Descolamento cerâmico (som cavo)', 'Eflorescência em rejuntes', 'Descascamento/Bolhas na pintura', 
-            'Reboco esfarelando', 'Fissuras mapeadas (teia de aranha)', 'Cerâmica trincada', 'Mofo excessivo'
-        ],
-        'Soluções': [
-            'Novo assentamento com AC-III', 'Limpeza ácida e rejunte impermeável', 'Raspagem, fundo preparador e repintura', 
-            'Remoção total e novo reboco com aditivo', 'Selador e massa acrílica', 'Troca da peça cerâmica', 'Limpeza com cloro'
-        ]
-    },
-    'Esquadrias': {
-        'Problemas': [
-            'Dificuldade de deslize', 'Oxidação em marcos metálicos', 'Vidros quebrados/soltos', 'Falta de vedação', 
-            'Braços de articulação travados', 'Fechaduras com defeito', 'Infiltração pela guarnição'
-        ],
-        'Soluções': [
-            'Limpeza e lubrificação de roldanas', 'Tratamento de corrosão e pintura esmalte', 'Troca de vidros e silicone', 
-            'Novas guarnições/escovas', 'Substituição de ferragens', 'Troca do miolo', 'Vedação externa com PU'
-        ]
+        'Problemas': ['Telhas quebradas/fissuradas', 'Telhas deslocadas (vento)', 'Calhas obstruídas', 'Corrosão em calhas metálicas', 'Infiltração em rufos', 'Estrutura metálica com oxidação', 'Madeiramento com cupim/podridão', 'Pontos de goteira'],
+        'Soluções': ['Substituição das peças avariadas', 'Revisão de fixação', 'Limpeza e desobstrução manual', 'Pintura betuminosa ou troca', 'Substituição de rufos e PU 40', 'Lixamento e pintura anticorrosiva', 'Imunização química']
     },
     'Hidráulica': {
-        'Problemas': [
-            'Vazamento aparente em conexões', 'Baixa pressão', 'Torneiras pingando', 'Ruído de "golpe de aríete"', 
-            'Umidade em paredes (invisível)', 'Caixa d\'água suja', 'Corrosão metálica', 'Bóia com defeito'
-        ],
-        'Soluções': [
-            'Substituição de conexões', 'Limpeza de crivos e filtros', 'Troca de vedantes (reparos)', 
-            'Instalação de válvulas de alívio', 'Geofonamento e reparo pontual', 'Limpeza e desinfecção', 'Substituição por PVC/PEX'
-        ]
-    },
-    'Esgotamento': {
-        'Problemas': [
-            'Retorno de mau cheiro', 'Entupimento de ramais', 'Caixa de gordura saturada', 'Rompimento de tubos de queda', 
-            'Caixa de inspeção quebrada', 'Pragas (baratas/ratos)', 'Vazamento em anel de vedação de vaso'
-        ],
-        'Soluções': [
-            'Revisão de ventilação secundária', 'Hidrojateamento', 'Limpeza total da caixa', 'Substituição de trecho', 
-            'Recomposição da tampa', 'Dedetização e vedação', 'Substituição do anel de vedação'
-        ]
-    },
-    'Drenagem': {
-        'Problemas': [
-            'Acúmulo de poças d\'água', 'Ralos obstruídos', 'Caixas de areia cheias', 'Canaletas com caimento negativo', 
-            'Bocas de lobo quebradas', 'Erosão de taludes', 'Infiltração em muros de arrimo'
-        ],
-        'Soluções': [
-            'Correção de caimento de piso', 'Desobstrução manual', 'Limpeza periódica', 'Recomposição de canaleta', 
-            'Reparo em concreto/grades', 'Plantio de grama/contenção', 'Execução de barbacãs e drenos'
-        ]
+        'Problemas': ['Vazamento aparente em conexões', 'Baixa pressão no sistema', 'Torneiras/Registros pingando', 'Ruído de golpe de aríete', 'Umidade em paredes (invisível)', 'Caixa d\'água com sujidade', 'Bóia com defeito', 'Corrosão em tubulação galvanizada'],
+        'Soluções': ['Substituição de conexões/reparos', 'Limpeza de crivos e filtros', 'Troca de vedantes (reparos)', 'Instalação de válvulas de alívio', 'Geofonamento e reparo pontual', 'Limpeza e desinfecção', 'Substituição por PVC/PEX']
     },
     'Elétrica': {
-        'Problemas': [
-            'Fios expostos', 'Quadro sem identificação', 'Disjuntores desarmando', 'Aquecimento de condutores', 
-            'Falta de aterramento', 'Luminárias piscando', 'Tomadas queimadas', 'Falta de DR'
-        ],
-        'Soluções': [
-            'Acondicionamento em eletrodutos', 'Etiquetagem de circuitos', 'Redimensionamento de carga', 
-            'Troca de condutores', 'Instalação de malha de terra', 'Troca de reator/lâmpada', 'Instalação de DR'
-        ]
+        'Problemas': ['Fios expostos/sem isolamento', 'Quadro sem identificação de circuitos', 'Disjuntores desarmando (sobrecarga)', 'Aquecimento de condutores', 'Falta de aterramento', 'Luminárias piscando/queimadas', 'Tomadas com sinais de centelhamento', 'Falta de dispositivo DR'],
+        'Soluções': ['Acondicionamento em eletrodutos', 'Etiquetagem e mapeamento de circuitos', 'Redimensionamento de carga', 'Troca de condutores por seção adequada', 'Instalação de malha de terra', 'Substituição por LED', 'Instalação de DR conforme NBR 5410']
+    },
+    'Pavimentação': {
+        'Problemas': ['Peças soltas/quebradas', 'Buracos (potholes)', 'Desnível por recalque', 'Trincas "couro de jacaré"', 'Meio-fio deslocado', 'Acúmulo de lama/areia', 'Falta de rejuntamento'],
+        'Soluções': ['Recomposição de base e travamento', 'Tapa-buraco asfáltico', 'Compactação de base e correção de cota', 'Fresagem e recapeamento', 'Alinhamento de guias', 'Selagem de trincas']
     }
 }
 
 lista_disciplinas = ["Escolha..."] + list(sugestoes.keys()) + ["Outras"]
+lista_modalidades = ["Serviços contínuos", "Serviços eventuais", "Obras ou reformas"]
 
-# 4. BARRA LATERAL (SIDEBAR)
+# 4. FUNÇÃO PARA GERAR O PDF COMPLETO (PADRÃO OFICIAL PRODIN)
+def gerar_pdf(dados):
+    campus = dados.get('Campus', 'IFBA')
+    data_relatorio = dados.get('Data', datetime.now().strftime("%d/%m/%Y"))
+    engenheiro = dados.get('Engenheiro', 'Responsável Técnico')
+
+    if not os.path.exists(NOME_ARQUIVO_LOGO):
+        try: res = requests.get(URL_LOGO_IFBA); open(NOME_ARQUIVO_LOGO, "wb").write(res.content)
+        except: pass
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    
+    # --- PÁGINA 1: CAPA ---
+    pdf.add_page()
+    if os.path.exists(NOME_ARQUIVO_LOGO): pdf.image(NOME_ARQUIVO_LOGO, x=87, y=15, w=35) 
+    pdf.set_y(60)
+    pdf.set_font("Arial", 'B', 18); pdf.cell(190, 15, "RELATÓRIO DE FISCALIZAÇÃO", ln=True, align='C')
+    pdf.set_font("Arial", '', 12); pdf.cell(190, 8, "RELATÓRIO DE VISITA TÉCNICA - DINFRA/PRODIN/IFBA", ln=True, align='C')
+    pdf.set_font("Arial", 'B', 12); pdf.cell(190, 8, f"CAMPUS - {campus.upper()}", ln=True, align='C')
+    pdf.ln(10); pdf.set_font("Arial", 'B', 11); pdf.cell(190, 10, f"Data: {data_relatorio}", ln=True, align='C')
+    
+    pdf.ln(20); pdf.set_font("Arial", 'B', 11); pdf.cell(190, 8, "ÓRGÃO RESPONSÁVEL – CONTRATANTE", ln=True, align='C')
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(190, 5, "IFBA – Instituto Federal de Educação, Ciência e Tecnologia da Bahia", ln=True, align='C')
+    pdf.cell(190, 5, "CNPJ: 10.764.307/0001-12 | Reitoria: Salvador - BA", ln=True, align='C')
+    
+    pdf.ln(20); pdf.set_font("Arial", 'B', 12); pdf.cell(190, 8, "PROGRAMA PRODIN EM CAMPUS", ln=True, align='C')
+    pdf.set_font("Arial", '', 11); pdf.cell(190, 6, "Diretoria de Infraestrutura | Departamento de Obras e Fiscalização", ln=True, align='C')
+    pdf.ln(10); pdf.set_font("Arial", 'B', 11); pdf.cell(190, 8, f"RESPONSÁVEL: {engenheiro.upper()}", ln=True, align='C')
+
+    # --- PÁGINA 2: INTRODUÇÃO ---
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 14); pdf.cell(190, 10, "1. INTRODUÇÃO", ln=True)
+    pdf.set_font("Arial", '', 11)
+    intro_texto = f"A Diretoria de Infraestrutura (DINFRA) por intermédio do Departamento de Obras e Fiscalização está realizando visitas técnicas nas unidades do Instituto visando o acompanhamento das edificações e infraestrutura por profissionais habilitados. O objetivo geral das visitas é avaliar, observar e analisar as construções identificando patologias e possíveis soluções. A unidade foco deste relatório é o campus {campus}."
+    pdf.multi_cell(0, 7, intro_texto)
+
+    # --- PÁGINA 3: DETALHAMENTO ---
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 14); pdf.cell(190, 10, "2. DETALHAMENTO TÉCNICO", ln=True)
+    pdf.set_font("Arial", '', 10)
+    for k, v in dados.items():
+        if k != "Foto_Dados":
+            pdf.set_font("Arial", 'B', 10); pdf.cell(45, 8, f"{k}:", 1)
+            pdf.set_font("Arial", '', 10); pdf.multi_cell(0, 8, f" {str(v)}", 1)
+    
+    if dados.get("Foto_Dados"):
+        try:
+            img_data = base64.b64decode(dados["Foto_Dados"])
+            pdf.ln(10); pdf.image(io.BytesIO(img_data), x=45, w=110)
+        except: pass
+
+    # --- PÁGINA 4: CONCLUSÃO ---
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 14); pdf.cell(190, 10, "3. CONCLUSÃO", ln=True)
+    pdf.set_font("Arial", '', 11)
+    concl = "Após a vistoria, a Fiscalização constatou a presença de manifestações patológicas nas edificações. Conclui-se que as ações de manutenção deverão ser implementadas com objetivo de reduzir a degradação e potencializar a vida útil das instalações. A equipe DINFRA permanece à disposição para auxílios necessários."
+    pdf.multi_cell(0, 7, concl)
+    pdf.ln(20); pdf.cell(190, 10, f"Salvador, {datetime.now().strftime('%d/%m/%Y')}.", ln=True)
+
+    return pdf.output(dest='S').encode('latin-1', 'replace')
+
+# 5. BARRA LATERAL (SIDEBAR)
 with st.sidebar:
     st.markdown("<h1 style='text-align: center;'>⚙️ PRODIN - IFBA</h1>", unsafe_allow_html=True)
-    
     eng_sel = st.selectbox("Engenheiro Responsável", list(dados_prodin.keys()))
-    
-    # Lógica de Gênero para Avatar Centralizado
-    genero = dados_prodin[eng_sel]["genero"]
-    if genero == "F":
-        icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135768.png"
-    else:
-        icon_url = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
-        
-    col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
-    with col_img2:
-        try:
-            res = requests.get(icon_url)
-            st.image(Image.open(io.BytesIO(res.content)), use_container_width=True)
-        except:
-            st.write("👤")
-
     campus_sel = st.selectbox("Campus", dados_prodin[eng_sel]["campi"])
     st.divider()
     choice = st.radio("Navegação", ["Nova Inspeção", "Histórico / PDF"])
 
-# 5. FUNÇÃO PARA GERAR PDF (FPDF)
-def gerar_pdf(dados):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, "RELATÓRIO DE INSPEÇÃO PREDIAL - IFBA", ln=True, align='C')
-    pdf.ln(10)
-    for chave, valor in dados.items():
-        if chave != "Foto_Dados":
-            pdf.set_font("Arial", 'B', 11); pdf.cell(40, 8, f"{chave}:", 0)
-            pdf.set_font("Arial", size=11); pdf.multi_cell(0, 8, f"{str(valor)}", 0); pdf.ln(2)
-    if dados.get("Foto_Dados"):
-        try:
-            img_data = base64.b64decode(dados["Foto_Dados"])
-            img = Image.open(io.BytesIO(img_data)).convert("RGB")
-            img.save("temp_report.jpg", "JPEG")
-            pdf.ln(5); pdf.cell(200, 10, "EVIDÊNCIA FOTOGRÁFICA:", ln=True)
-            pdf.image("temp_report.jpg", x=10, w=100)
-        except: pass
-    return pdf.output(dest='S').encode('latin-1', 'replace')
-
-# 6. CONEXÃO COM GOOGLE SHEETS
+# 6. CONEXÃO COM GOOGLE SHEETS E TELAS
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 if choice == "Nova Inspeção":
-    st.header("📋 Registrar Inspeção Técnica")
+    st.header(f"📋 Registrar Inspeção Técnica")
     disciplina = st.selectbox("1. Escolha a Disciplina Técnica:", lista_disciplinas)
     
-    with st.form("form_prodin_final", clear_on_submit=True):
+    with st.form("form_prodin_final", clear_on_submit=False):
         col_ed, col_dt = st.columns([2, 1])
-        with col_ed:
-            edificacao = st.selectbox("Edificação", ["Pavilhão de Aulas", "Pavilhão Administrativo", "Refeitório", "Ginásio", "Muro", "Estacionamento", "Guarita", "Galpão", "Usina Solar"])
-        with col_dt:
-            data_ins = st.date_input("Data da Inspeção", datetime.now())
-
+        with col_ed: edificacao = st.selectbox("Edificação", ["Pavilhão de Aulas", "Pavilhão Adm", "Refeitório", "Ginásio", "Muro", "Outro"])
+        with col_dt: data_ins = st.date_input("Data da Inspeção", datetime.now())
+        
         col_amb, col_num = st.columns([2, 1])
-        with col_amb:
-            ambiente = st.selectbox("Ambiente", ["Laboratório", "Sala Adm", "Sala de Aula", "Sanitário M", "Sanitário F", "Sanitário PCD", "Corredor", "Externo"])
-        with col_num:
-            sala_num = st.text_input("Nº Sala")
+        with col_amb: ambiente = st.text_input("Ambiente (Ex: Sala Adm)")
+        with col_num: sala_num = st.text_input("Nº Sala")
 
-        ambiente_final = f"{ambiente} - {sala_num}" if sala_num else ambiente
+        modalidade = st.selectbox("Modalidade", lista_modalidades)
+        
         desc_final, sol_final = "", ""
-
         if disciplina in sugestoes:
             st.divider()
             pat_sel = st.selectbox("Patologia Identificada:", sugestoes[disciplina]['Problemas'])
@@ -226,45 +171,46 @@ if choice == "Nova Inspeção":
         
         foto = st.file_uploader("📸 Foto da Evidência", type=['jpg', 'jpeg', 'png'])
 
-        if st.form_submit_button("✅ Salvar na Planilha"):
+        if st.form_submit_button("✅ Salvar Inspeção"):
             if disciplina == "Escolha...":
                 st.error("Selecione a disciplina!")
             else:
-                foto_b64 = ""
+                f_b64 = ""
                 if foto:
                     img = Image.open(foto); img.thumbnail((700, 700))
                     buf = io.BytesIO(); img.save(buf, format="JPEG", quality=70)
-                    foto_b64 = base64.b64encode(buf.getvalue()).decode()
-
-                novo_reg = pd.DataFrame([{
+                    f_b64 = base64.b64encode(buf.getvalue()).decode()
+                
+                novo_reg = {
                     "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, "Edificacao": edificacao, 
-                    "Disciplina": disciplina, "Ambiente": ambiente_final, "Descricao": desc_final, 
-                    "Solucoes": sol_final, "Engenheiro": eng_sel, "Foto_Dados": foto_b64
-                }])
+                    "Disciplina": disciplina, "Ambiente": ambiente, "Sala": sala_num, "Modalidade": modalidade,
+                    "Descricao": desc_final, "Solucoes": sol_final, "Engenheiro": eng_sel, "Foto_Dados": f_b64
+                }
+                
                 try:
-                    df = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
-                    df_f = pd.concat([df, novo_reg], ignore_index=True)
-                    conn.update(spreadsheet=URL_PLANILHA, data=df_f)
-                    st.success("✅ Registro salvo!")
-                except:
-                    st.error("Erro ao salvar: Verifique o link da sua planilha na linha 14.")
+                    df_atual = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
+                    conn.update(spreadsheet=URL_PLANILHA, data=pd.concat([df_atual, pd.DataFrame([novo_reg])], ignore_index=True))
+                    st.success("✅ Inspeção salva com sucesso!")
+                    st.session_state['ultimo_rel'] = novo_reg
+                except: st.error("Erro ao salvar. Verifique o link da planilha.")
+
+    if 'ultimo_rel' in st.session_state:
+        st.divider()
+        st.subheader("📄 Ações para o último registro")
+        st.download_button("📥 Baixar PDF da Inspeção", data=gerar_pdf(st.session_state['ultimo_rel']), file_name=f"Inspecao_{campus_sel}.pdf", mime="application/pdf")
 
 elif choice == "Histórico / PDF":
-    st.header("📂 Histórico de Inspeções")
+    st.header(f"📂 Histórico - Campus {campus_sel}")
     try:
         df = conn.read(spreadsheet=URL_PLANILHA, ttl=0)
-        st.dataframe(df.drop(columns=['Foto_Dados'], errors='ignore'), use_container_width=True)
-        if not df.empty:
-            id_sel = st.selectbox("Selecione o ID para PDF:", df.index)
-            reg = df.iloc[id_sel]
-            col_v, col_p = st.columns([1, 1])
-            with col_v:
-                if reg["Foto_Dados"]:
-                    st.image(base64.b64decode(reg["Foto_Dados"]), width=300)
-            with col_p:
-                pdf_b = gerar_pdf(reg.to_dict())
-                st.download_button("📥 Baixar PDF", data=pdf_b, file_name=f"Inspecao_{id_sel}.pdf", mime="application/pdf")
-    except:
-        st.error("Erro ao carregar banco de dados. Verifique o link da sua planilha.")
+        df_f = df[df['Campus'] == campus_sel]
+        if df_f.empty:
+            st.info(f"Sem registros para {campus_sel}.")
+        else:
+            st.dataframe(df_f.drop(columns=['Foto_Dados'], errors='ignore'), use_container_width=True)
+            id_sel = st.selectbox("Selecione o registro para gerar PDF:", df_f.index)
+            st.download_button("📥 Baixar PDF Selecionado", data=gerar_pdf(df_f.loc[id_sel].to_dict()), file_name=f"Relatorio_{campus_sel}_{id_sel}.pdf")
+    except: st.error("Erro ao carregar dados.")
 
+# RODAPÉ COM OS DESENVOLVEDORES
 st.markdown("<br><hr><div style='text-align: center; color: gray;'><strong>Desenvolvido por:</strong><br>Thiago Messias Carvalho Soares & Roger Ramos Santana<br>PRODIN - IFBA 2026</div>", unsafe_allow_html=True)
