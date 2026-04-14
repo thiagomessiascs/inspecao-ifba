@@ -12,8 +12,9 @@ import os
 # 1. CONFIGURAÇÕES DA PÁGINA
 st.set_page_config(page_title="Sistema PRODIN - IFBA", layout="centered", page_icon="📋")
 
-# 🔗 CONFIGURAÇÕES DE LINKS
-URL_PLANILHA = "https://docs.google.com/spreadsheets/d/1PMXVtDLi6DSmBiNC5QOjLKwd5SRFrBQrFU61ros-9A/edit#gid=0"
+# 🔗 CONFIGURAÇÕES DE LINKS - ATUALIZADO PARA A NOVA PLANILHA
+URL_PLANILHA = "https://docs.google.com/spreadsheets/d/1i2-Sd9853TrdgUGso9QRX5sKD7kFmsbuqih9FIF-7F8/edit#gid=0"
+NOME_ABA = "Página1" # Certifique-se que o nome na aba da planilha é este
 URL_LOGO_IFBA = "https://portal.ifba.edu.br/dgcom/documentos-e-manuais-arquivos/manuais/ifba_marca_vertical-01.png/@@download/file/IFBA_MARCA_vertical-01.png"
 NOME_ARQUIVO_LOGO = "logo_ifba_vertical.png"
 
@@ -117,7 +118,6 @@ if nav == "Nova Inspeção":
         ambiente = c3.text_input("Ambiente")
         sala = c4.text_input("Sala")
         
-        # CAMPO MODALIDADE
         modalidade = st.selectbox("Modalidade", lista_modalidades)
         
         desc, sol = "", ""
@@ -126,6 +126,9 @@ if nav == "Nova Inspeção":
             desc = st.text_area("Detalhamento:", value=pat)
             sug = st.selectbox("Solução:", sugestoes[disc]['Soluções'])
             sol = st.text_area("Encaminhamento:", value=sug)
+        else:
+            desc = st.text_area("Detalhamento:")
+            sol = st.text_area("Encaminhamento:")
             
         foto = st.file_uploader("📸 Foto", type=['jpg', 'png'])
 
@@ -137,15 +140,27 @@ if nav == "Nova Inspeção":
                 f_b64 = base64.b64encode(buf.getvalue()).decode()
             
             reg = {
-                "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, "Edificacao": edificacao,
-                "Disciplina": disc, "Ambiente": ambiente, "Sala": sala, "Modalidade": modalidade,
-                "Descricao": desc, "Solucoes": sol, "Engenheiro": eng_sel, "Foto_Dados": f_b64
+                "Data": data_ins.strftime("%d/%m/%Y"), 
+                "Campus": campus_sel, 
+                "Edificacao": edificacao,
+                "Disciplina": disc, 
+                "Ambiente": ambiente, 
+                "Sala": sala, 
+                "Modalidade": modalidade,
+                "Descricao": desc, 
+                "Solucoes": sol, 
+                "Engenheiro": eng_sel, 
+                "Foto_Dados": f_b64
             }
             
             try:
-                df = conn.read(spreadsheet=URL_PLANILHA, worksheet="Página1", ttl=0)
-                conn.update(spreadsheet=URL_PLANILHA, worksheet="Página1", data=pd.concat([df, pd.DataFrame([reg])], ignore_index=True))
-                st.success("Salvo!")
+                # Lendo a nova planilha e aba
+                df = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
+                # Concatenando o novo registro
+                novo_df = pd.concat([df, pd.DataFrame([reg])], ignore_index=True)
+                # Atualizando a planilha
+                conn.update(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, data=novo_df)
+                st.success("Inspeção salva com sucesso na nova planilha!")
                 st.session_state['ultimo'] = reg
             except Exception as e:
                 st.error(f"Erro ao salvar: {e}")
@@ -155,8 +170,11 @@ if nav == "Nova Inspeção":
 
 elif nav == "Histórico":
     st.header(f"📂 Histórico: {campus_sel}")
-    df = conn.read(spreadsheet=URL_PLANILHA, worksheet="Página1", ttl=0)
-    df_f = df[df['Campus'] == campus_sel]
-    st.dataframe(df_f.drop(columns=['Foto_Dados'], errors='ignore'))
+    try:
+        df = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
+        df_f = df[df['Campus'] == campus_sel]
+        st.dataframe(df_f.drop(columns=['Foto_Dados'], errors='ignore'))
+    except:
+        st.warning("Não foi possível carregar o histórico desta planilha.")
 
 st.markdown("<hr><center>Desenvolvido por: Thiago Messias Carvalho Soares & Roger Ramos Santana | PRODIN 2026</center>", unsafe_allow_html=True)
