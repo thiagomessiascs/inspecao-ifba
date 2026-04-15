@@ -17,7 +17,7 @@ NOME_ABA = "Sheet1"
 URL_LOGO_IFBA = "https://raw.githubusercontent.com/thiagomessiascs/inspecao-ifba/main/logo_ifba_vertical.png"
 NOME_ARQUIVO_LOGO = "logo_ifba.png"
 
-# --- DICIONÁRIO TÉCNICO COMPLETO E DETALHADO (AMARRADO POR PATOLOGIA) ---
+# --- DICIONÁRIO TÉCNICO COMPLETO E DETALHADO ---
 sugestoes_v2 = {
     'Alvenaria': {
         'Fissuras de retração térmica': {
@@ -80,7 +80,7 @@ sugestoes_v2 = {
     'Hidráulica': {
         'Vazamento em conexões de PVC': {
             'solucao': 'Substituição de trecho e vedação plástica',
-            'obs': 'Procedimento: Cortar o trecho avariado, instalar luvas de correr ou conexões novas com adesivo plástico apropriado.'
+            'obs': 'Procedimento: Cortar o trecho avariado, instalar luvas de correr ou conexões novas com abraçadeiras apropriadas.'
         },
         'Retorno de odor em ralos e sifões': {
             'solucao': 'Substituição de desconector ou recomposição de fecho hídrico',
@@ -204,14 +204,14 @@ if not st.session_state['autenticado']:
         else: st.error("Senha incorreta!")
     st.stop()
 
-# 3. MAPEAMENTO DOS PROFISSIONAIS (COM ÍCONES ORIGINAIS)
+# 3. MAPEAMENTO DOS PROFISSIONAIS (HOMEM A [👨‍🎨] E MULHER E [👩‍💻])
 dados_prodin = {
-    "Eng. Thiago": {"campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"], "icone": "👨‍💼"},
-    "Eng. Roger": {"campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"], "icone": "👨‍💼"},
-    "Eng. Laís": {"campi": ["Barreiras", "Jaguaquara", "Jequié"], "icone": "👩‍💼"},
-    "Eng. Larissa": {"campi": ["Campo Formoso", "Juazeiro", "Casa Nova", "Ilhéus", "Ubaitaba", "Camacan"], "icone": "👩‍💼"},
-    "Eng. Marcelo": {"campi": ["Brumado", "Vitória da Conquista"], "icone": "👨‍💼"},
-    "Eng. Fenelon": {"campi": ["Camaçari", "Lauro de Freitas", "Santo Antônio de Jesus", "Simões Filho", "Valença"], "icone": "👨‍💼"}
+    "Eng. Thiago": {"campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"], "icone": "👨‍🎨"},
+    "Eng. Roger": {"campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"], "icone": "👨‍🎨"},
+    "Eng. Laís": {"campi": ["Barreiras", "Jaguaquara", "Jequié"], "icone": "👩‍💻"},
+    "Eng. Larissa": {"campi": ["Campo Formoso", "Juazeiro", "Casa Nova", "Ilhéus", "Ubaitaba", "Camacan"], "icone": "👩‍💻"},
+    "Eng. Marcelo": {"campi": ["Brumado", "Vitória da Conquista"], "icone": "👨‍🎨"},
+    "Eng. Fenelon": {"campi": ["Camaçari", "Lauro de Freitas", "Santo Antônio de Jesus", "Simões Filho", "Valença"], "icone": "👨‍🎨"}
 }
 
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -220,21 +220,21 @@ with st.sidebar:
     st.title("⚙️ PRODIN")
     eng_sel = st.selectbox("Engenheiro", list(dados_prodin.keys()))
     
-    # --- CÓDIGO DO ÍCONE CIRCULAR E CENTRALIZADO ---
+    # --- CÓDIGO DO ÍCONE CIRCULAR CENTRALIZADO ---
     icone_profissional = dados_prodin[eng_sel]["icone"]
     st.markdown(f"""
     <div style="display: flex; justify-content: center; margin-top: 10px; margin-bottom: 20px;">
         <div style="
-            width: 100px; 
-            height: 100px; 
-            background-color: #f0f2f6; 
+            width: 110px; 
+            height: 110px; 
+            background-color: white; 
             border-radius: 50%; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
-            font-size: 60px;
-            box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
-            border: 3px solid #007bff;
+            font-size: 65px;
+            box-shadow: 0px 4px 12px rgba(0,0,0,0.15);
+            border: 4px solid #2e7d32;
         ">
             {icone_profissional}
         </div>
