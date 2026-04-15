@@ -204,7 +204,7 @@ if not st.session_state['autenticado']:
         else: st.error("Senha incorreta!")
     st.stop()
 
-# 3. MAPEAMENTO DOS PROFISSIONAIS (HOMEM 👷‍♂️ E MULHER 👷‍♀️)
+# 3. MAPEAMENTO DOS PROFISSIONAIS
 dados_prodin = {
     "Eng. Thiago": {"campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"], "icone": "👷‍♂️"},
     "Eng. Roger": {"campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"], "icone": "👷‍♂️"},
@@ -244,7 +244,6 @@ with st.sidebar:
     campus_sel = st.selectbox("Campus", dados_prodin[eng_sel]["campi"])
     nav = st.radio("Ir para:", ["Nova Inspeção", "Histórico"])
     
-    # --- BOTÃO DE SAIR ---
     st.markdown("<br>" * 5, unsafe_allow_html=True)
     if st.button("🚪 Sair do Sistema", use_container_width=True):
         st.session_state['autenticado'] = False
@@ -306,36 +305,52 @@ elif nav == "Histórico":
         df_filtrado = df[df['Campus'] == campus_sel].copy()
         
         if not df_filtrado.empty:
-            # Seleção de qual registro editar
             indices_disponiveis = df_filtrado.index.tolist()
             idx_para_editar = st.selectbox("Selecione o registro para Editar ou Visualizar:", indices_disponiveis, format_func=lambda x: f"ID {x} - {df_filtrado.loc[x, 'Data']} - {df_filtrado.loc[x, 'Descricao']}")
             
-            with st.expander("📝 Editar Registro Selecionado", expanded=False):
-                # Campos preenchidos com os dados atuais
-                edit_edificacao = st.text_input("Edificação", value=df_filtrado.loc[idx_para_editar, 'Edificacao'])
-                edit_ambiente = st.text_input("Ambiente", value=df_filtrado.loc[idx_para_editar, 'Ambiente'])
-                edit_desc = st.text_input("Patologia", value=df_filtrado.loc[idx_para_editar, 'Descricao'])
-                edit_sol = st.text_area("Soluções/Observações", value=df_filtrado.loc[idx_para_editar, 'Solucoes'])
+            with st.expander("📝 Editar Registro Selecionado", expanded=True):
+                # 1. Seleção de Disciplina para manter o dicionário ativo na edição
+                disc_atual = df_filtrado.loc[idx_para_editar, 'Disciplina']
+                lista_discs = list(sugestoes_v2.keys())
+                idx_disc_default = lista_discs.index(disc_atual) if disc_atual in lista_discs else 0
+                edit_disciplina = st.selectbox("Disciplina Técnica", lista_discs, index=idx_disc_default, key="edit_disc")
+
+                # 2. Seleção de Patologia (Dropdown baseado na disciplina)
+                lista_pats_edit = list(sugestoes_v2[edit_disciplina].keys())
+                pat_atual = df_filtrado.loc[idx_para_editar, 'Descricao']
+                idx_pat_default = lista_pats_edit.index(pat_atual) if pat_atual in lista_pats_edit else 0
+                edit_desc = st.selectbox("Patologia Identificada", lista_pats_edit, index=idx_pat_default)
+
+                # 3. Carregamento automático dos dados do dicionário
+                dados_sugestao = sugestoes_v2[edit_disciplina][edit_desc]
+                
+                c_e1, c_e2 = st.columns(2)
+                lista_edif = ["Pavilhão de aulas", "Pavilhão acadêmico", "Pavilhão administrativo", "Ginásio", "Refeitório", "Muro", "Estacionamento", "Usina solar", "Usina de biodiesel", "Guarita"]
+                edif_at = df_filtrado.loc[idx_para_editar, 'Edificacao']
+                edit_edificacao = c_e1.selectbox("Edificação", lista_edif, index=lista_edif.index(edif_at) if edif_at in lista_edif else 0)
+                edit_ambiente = c_e2.text_input("Ambiente", value=df_filtrado.loc[idx_para_editar, 'Ambiente'])
+
+                edit_sol_tec = st.text_input("Solução Técnica (Automática):", value=dados_sugestao['solucao'])
+                edit_obs = st.text_area("Observações (Procedimento):", value=dados_sugestao['obs'])
                 
                 if st.button("💾 Salvar Alterações"):
+                    df.loc[idx_para_editar, 'Disciplina'] = edit_disciplina
                     df.loc[idx_para_editar, 'Edificacao'] = edit_edificacao
                     df.loc[idx_para_editar, 'Ambiente'] = edit_ambiente
                     df.loc[idx_para_editar, 'Descricao'] = edit_desc
-                    df.loc[idx_para_editar, 'Solucoes'] = edit_sol
+                    df.loc[idx_para_editar, 'Solucoes'] = f"{edit_sol_tec} | {edit_obs}"
                     
                     try:
                         conn.update(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, data=df)
-                        st.success("✅ Registro atualizado com sucesso!")
+                        st.success("✅ Registro atualizado!")
                         st.rerun()
-                    except Exception as e:
-                        st.error(f"Erro ao atualizar: {e}")
+                    except Exception as e: st.error(f"Erro: {e}")
             
-            # Exibição da tabela (sem a coluna de foto que é pesada)
             st.dataframe(df_filtrado.drop(columns=['Foto_Dados'], errors='ignore'))
         else:
             st.info("Nenhum registro encontrado para este campus.")
             
     except Exception as e: 
-        st.warning(f"Histórico indisponível no momento. Detalhe: {e}")
+        st.warning(f"Histórico indisponível. Detalhe: {e}")
 
 st.markdown("<hr><center>Desenvolvido por: Thiago Messias Carvalho Soares & Roger Ramos Santana | PRODIN 2026</center>", unsafe_allow_html=True)
