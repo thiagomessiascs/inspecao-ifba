@@ -13,7 +13,7 @@ import os
 st.set_page_config(page_title="Sistema PRODIN - IFBA", layout="centered", page_icon="📋")
 
 # 🔗 CONFIGURAÇÕES DE CONEXÃO
-URL_PLANILHA = "https://docs.google.com/spreadsheets/d/1i2-Sd9853TrdgUGso9QRX5sKD7kFmsbuqih9FIF-7F8/edit#gid=0"
+URL_PLANILHA = "https://docs.google.com/spreadsheets/d/1i2-Sd9853TrdgUGso9QRX5sKD7kFmsbuqih9FIF-7F8/edit"
 NOME_ABA = "Sheet1" 
 # Link alternativo do logo (GitHub)
 URL_LOGO_IFBA = "https://raw.githubusercontent.com/thiagomessiascs/inspecao-ifba/main/logo_ifba_vertical.png"
