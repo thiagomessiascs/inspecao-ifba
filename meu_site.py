@@ -12,11 +12,12 @@ import os
 # 1. CONFIGURAÇÕES DA PÁGINA
 st.set_page_config(page_title="Sistema PRODIN - IFBA", layout="centered", page_icon="📋")
 
-# 🔗 LINKS ATUALIZADOS - CONTA: prodinemcampus@gmail.com
+# 🔗 CONFIGURAÇÕES DE CONEXÃO
 URL_PLANILHA = "https://docs.google.com/spreadsheets/d/1i2-Sd9853TrdgUGso9QRX5sKD7kFmsbuqih9FIF-7F8/edit#gid=0"
-NOME_ABA = "Sheet1" # Ajustado conforme a imagem da sua planilha
+NOME_ABA = "Sheet1" 
+# Link alternativo do logo (GitHub)
 URL_LOGO_IFBA = "https://raw.githubusercontent.com/thiagomessiascs/inspecao-ifba/main/logo_ifba_vertical.png"
-NOME_ARQUIVO_LOGO = "logo_ifba_vertical.png"
+NOME_ARQUIVO_LOGO = "logo_ifba.png"
 
 # 2. SISTEMA DE ACESSO
 if 'autenticado' not in st.session_state:
@@ -69,26 +70,25 @@ sugestoes = {
 lista_disciplinas = ["Escolha..."] + list(sugestoes.keys()) + ["Outras"]
 lista_modalidades = ["Serviços contínuos", "Serviços eventuais", "Obras ou reformas"]
 
-# 4. FUNÇÃO PDF
+# 4. FUNÇÃO PDF (REVISADA)
 def gerar_pdf(dados):
     pdf = FPDF()
     pdf.add_page()
-    if not os.path.exists(NOME_ARQUIVO_LOGO):
-        try: 
-            res = requests.get(URL_LOGO_IFBA)
-            if res.status_code == 200:
+    
+    # Tenta carregar o logo, mas não trava se falhar
+    try:
+        if not os.path.exists(NOME_ARQUIVO_LOGO):
+            r = requests.get(URL_LOGO_IFBA, timeout=5)
+            if r.status_code == 200:
                 with open(NOME_ARQUIVO_LOGO, "wb") as f:
-                    f.write(res.content)
-        except: pass
-    
-    if os.path.exists(NOME_ARQUIVO_LOGO): 
-        pdf.image(NOME_ARQUIVO_LOGO, x=87, y=15, w=35) 
-    
+                    f.write(r.content)
+        pdf.image(NOME_ARQUIVO_LOGO, x=87, y=15, w=35)
+    except:
+        pass # Se o logo der erro, apenas pula a imagem
+        
     pdf.set_y(60)
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(190, 10, "RELATÓRIO DE FISCALIZAÇÃO - IFBA", ln=True, align='C')
-    pdf.set_font("Arial", '', 12)
-    pdf.cell(190, 8, f"Campus: {dados.get('Campus')}", ln=True, align='C')
     pdf.ln(10)
     
     for k, v in dados.items():
@@ -100,13 +100,16 @@ def gerar_pdf(dados):
             
     if dados.get("Foto_Dados"):
         try:
-            img_data = base64.b64decode(dados["Foto_Dados"])
+            img_byte = base64.b64decode(dados["Foto_Dados"])
+            img_io = io.BytesIO(img_byte)
             pdf.ln(5)
-            pdf.image(io.BytesIO(img_data), x=50, w=110)
-        except: pass
+            pdf.image(img_io, x=50, w=110)
+        except:
+            pass
+            
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
-# 5. CONEXÃO E INTERFACE
+# 5. EXECUÇÃO
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 with st.sidebar:
@@ -119,7 +122,7 @@ if nav == "Nova Inspeção":
     st.header(f"📋 Nova Inspeção - {campus_sel}")
     disc = st.selectbox("Disciplina Técnica", lista_disciplinas)
     
-    with st.form("form_inspecao", clear_on_submit=False):
+    with st.form("form_inspecao", clear_on_submit=True):
         c1, c2 = st.columns([2, 1])
         edificacao = c1.selectbox("Edificação", ["Pavilhão Aulas", "Adm", "Ginásio", "Refeitório", "Outro"])
         data_ins = c2.date_input("Data", datetime.now())
@@ -129,54 +132,42 @@ if nav == "Nova Inspeção":
         sala = c4.text_input("Sala")
         modalidade = st.selectbox("Modalidade", lista_modalidades)
         
-        desc, sol = "", ""
-        if disc in sugestoes:
-            pat = st.selectbox("Patologia:", sugestoes[disc]['Problemas'])
-            desc = st.text_area("Detalhamento:", value=pat)
-            sug = st.selectbox("Solução:", sugestoes[disc]['Soluções'])
-            sol = st.text_area("Encaminhamento:", value=sug)
-        else:
-            desc = st.text_area("Detalhamento:")
-            sol = st.text_area("Encaminhamento:")
-            
-        foto = st.file_uploader("📸 Foto", type=['jpg', 'png', 'jpeg'])
+        desc = st.text_area("Detalhamento:", value=sugestoes[disc]['Problemas'][0] if disc in sugestoes else "")
+        sol = st.text_area("Encaminhamento:", value=sugestoes[disc]['Soluções'][0] if disc in sugestoes else "")
+        
+        foto = st.file_uploader("📸 Foto (Opcional)", type=['jpg', 'png', 'jpeg'])
 
-        if st.form_submit_button("✅ Salvar Inspeção"):
+        enviar = st.form_submit_button("✅ Salvar Inspeção")
+
+        if enviar:
             f_b64 = ""
             if foto:
-                img = Image.open(foto)
-                img = img.convert("RGB")
+                img = Image.open(foto).convert("RGB")
                 img.thumbnail((600, 600))
                 buf = io.BytesIO()
-                img.save(buf, format="JPEG", quality=70)
+                img.save(buf, format="JPEG", quality=75)
                 f_b64 = base64.b64encode(buf.getvalue()).decode()
             
             reg = {
-                "Data": data_ins.strftime("%d/%m/%Y"), 
-                "Campus": campus_sel, 
-                "Edificacao": edificacao,
-                "Disciplina": disc, 
-                "Ambiente": ambiente, 
-                "Sala": sala, 
-                "Modalidade": modalidade,
-                "Descricao": desc, 
-                "Solucoes": sol, 
-                "Engenheiro": eng_sel, 
-                "Foto_Dados": f_b64
+                "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, 
+                "Edificacao": edificacao, "Disciplina": disc, "Ambiente": ambiente, 
+                "Sala": sala, "Modalidade": modalidade, "Descricao": desc, 
+                "Solucoes": sol, "Engenheiro": eng_sel, "Foto_Dados": f_b64
             }
             
             try:
-                # Lê os dados existentes para concatenar
-                df_antigo = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
-                df_novo = pd.concat([df_antigo, pd.DataFrame([reg])], ignore_index=True)
+                df_atual = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
+                df_novo = pd.concat([df_atual, pd.DataFrame([reg])], ignore_index=True)
                 conn.update(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, data=df_novo)
-                st.success("✅ Inspeção salva com sucesso na planilha!")
-                st.session_state['ultimo'] = reg
+                st.success("✅ Salvo com sucesso na planilha!")
+                st.session_state['ultimo_relatorio'] = reg
             except Exception as e:
-                st.error(f"Erro ao salvar: {e}")
+                st.error(f"Erro na conexão: {e}")
 
-    if 'ultimo' in st.session_state:
-        st.download_button("📥 Baixar PDF", data=gerar_pdf(st.session_state['ultimo']), file_name=f"Relatorio_{campus_sel}.pdf")
+    if 'ultimo_relatorio' in st.session_state:
+        st.download_button("📥 Baixar Relatório PDF", 
+                           data=gerar_pdf(st.session_state['ultimo_relatorio']), 
+                           file_name=f"Inspecao_{campus_sel}_{datetime.now().strftime('%d_%m')}.pdf")
 
 elif nav == "Histórico":
     st.header(f"📂 Histórico: {campus_sel}")
@@ -184,6 +175,6 @@ elif nav == "Histórico":
         df = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
         st.dataframe(df[df['Campus'] == campus_sel].drop(columns=['Foto_Dados'], errors='ignore'))
     except:
-        st.warning("Histórico ainda vazio ou inacessível.")
+        st.warning("Nenhum dado encontrado para este campus.")
 
 st.markdown("<hr><center>Desenvolvido por: Thiago Messias Carvalho Soares & Roger Ramos Santana | PRODIN 2026</center>", unsafe_allow_html=True)
