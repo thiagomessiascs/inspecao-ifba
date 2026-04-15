@@ -148,14 +148,12 @@ if nav == "Nova Inspeção":
     with st.form("form_inspecao", clear_on_submit=True):
         c1, c2 = st.columns([1, 1])
         
-        # CAMPO EDIFICAÇÃO
         edificacao = c1.selectbox("Edificação", [
             "Pavilhão de aulas", "Pavilhão acadêmico", "Pavilhão administrativo", 
             "Ginásio", "Refeitório", "Muro", "Estacionamento", 
             "Usina solar", "Usina de biodiesel", "Guarita"
         ])
         
-        # --- NOVO CAMPO AMBIENTE (INDEPENDENTE) ---
         ambiente_sel = c2.selectbox("Ambiente", [
             "Sanitário Masculino", "Sanitário Masculino PDC", "Sanitário Feminino", 
             "Sanitário Feminino PDC", "Sala de aula", "Sala ADM", "Depósito", 
@@ -170,11 +168,12 @@ if nav == "Nova Inspeção":
         prob_sugestao = sugestoes[disc_escolhida]['Problemas'] if disc_escolhida in sugestoes else [""]
         sol_sugestao = sugestoes[disc_escolhida]['Soluções'] if disc_escolhida in sugestoes else [""]
         
-        desc_sel = st.selectbox("Patologia Identificada (Sugestão)", prob_sugestao)
-        desc_final = st.text_area("Detalhamento Final:", value=desc_sel)
+        # REMOVIDO: Botão Detalhamento Final. MANTIDO: Seleção de Patologia para a Planilha.
+        patologia_sel = st.selectbox("Patologia Identificada (Sugestão)", prob_sugestao)
         
-        sol_sel = st.selectbox("Encaminhamento Técnico (Sugestão)", sol_sugestao)
-        sol_final = st.text_area("Encaminhamento Final:", value=sol_sel)
+        # ALTERADO: Nomes dos campos conforme solicitado
+        sol_sel = st.selectbox("Solução Técnica", sol_sugestao)
+        obs_final = st.text_area("Observações:", value=sol_sel)
         
         foto = st.file_uploader("📸 Foto da Patologia", type=['jpg', 'png', 'jpeg'])
 
@@ -190,8 +189,8 @@ if nav == "Nova Inspeção":
             reg = {
                 "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, 
                 "Edificacao": edificacao, "Disciplina": disc_escolhida, "Ambiente": ambiente_sel, 
-                "Sala": "N/A", "Modalidade": modalidade, "Descricao": desc_final, 
-                "Solucoes": sol_final, "Engenheiro": eng_sel, "Foto_Dados": f_b64
+                "Sala": "N/A", "Modalidade": modalidade, "Descricao": patologia_sel, 
+                "Solucoes": obs_final, "Engenheiro": eng_sel, "Foto_Dados": f_b64
             }
             
             try:
