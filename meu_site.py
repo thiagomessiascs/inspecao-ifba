@@ -150,19 +150,26 @@ if nav == "Nova Inspeção":
 
     with st.form("form_inspecao", clear_on_submit=True):
         c1, c2 = st.columns([2, 1])
-        edificacao = c1.selectbox("Edificação", ["Pavilhão de aulas", "Pavilhão acadêmico", "Pavilhão administrativo", "Ginásio", "Refeitório", "Muro", "Estacionamento", "Usina solar", "Usina de biodiesel", "Guarita"])
+        
+        # --- BOTÃO AMBIENTES / EDIFICAÇÃO REINSERIDO ---
+        edificacao = c1.selectbox("Ambiente / Edificação", [
+            "Pavilhão de aulas", "Pavilhão acadêmico", "Pavilhão administrativo", 
+            "Ginásio", "Refeitório", "Muro", "Estacionamento", 
+            "Usina solar", "Usina de biodiesel", "Guarita"
+        ])
+        
         data_ins = c2.date_input("Data", datetime.now())
         
         c3, c4 = st.columns([2, 1])
-        ambiente = c3.text_input("Local/Sala")
+        local_especifico = c3.text_input("Local Específico / Sala")
         modalidade = c4.selectbox("Modalidade", ["Serviços contínuos", "Serviços eventuais", "Obras ou reformas"])
 
-        # Campos que carregam as sugestões baseadas na disciplina
+        # Sugestões técnicas
         prob_sugestao = sugestoes[disc_escolhida]['Problemas'] if disc_escolhida in sugestoes else [""]
         sol_sugestao = sugestoes[disc_escolhida]['Soluções'] if disc_escolhida in sugestoes else [""]
         
-        desc = st.selectbox("Patologia Identificada (Sugestão)", prob_sugestao)
-        desc_final = st.text_area("Detalhamento Final (Pode editar):", value=desc)
+        desc_sel = st.selectbox("Patologia Identificada (Sugestão)", prob_sugestao)
+        desc_final = st.text_area("Detalhamento Final (Pode editar):", value=desc_sel)
         
         sol_sel = st.selectbox("Encaminhamento Técnico (Sugestão)", sol_sugestao)
         sol_final = st.text_area("Encaminhamento Final (Pode editar):", value=sol_sel)
@@ -180,8 +187,8 @@ if nav == "Nova Inspeção":
             
             reg = {
                 "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, 
-                "Edificacao": edificacao, "Disciplina": disc_escolhida, "Ambiente": ambiente, 
-                "Sala": "N/A", "Modalidade": modalidade, "Descricao": desc_final, 
+                "Edificacao": edificacao, "Disciplina": disc_escolhida, "Ambiente": local_especifico, 
+                "Sala": "Ver Campo Local", "Modalidade": modalidade, "Descricao": desc_final, 
                 "Solucoes": sol_final, "Engenheiro": eng_sel, "Foto_Dados": f_b64
             }
             
