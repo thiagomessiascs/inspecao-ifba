@@ -148,7 +148,6 @@ if nav == "Nova Inspeção":
     
     with st.form("form_inspecao", clear_on_submit=True):
         c1, c2 = st.columns([2, 1])
-        # --- OPÇÕES DE AMBIENTE ATUALIZADAS ---
         edificacao = c1.selectbox("Edificação", [
             "Pavilhão de aulas", "Pavilhão acadêmico", "Pavilhão administrativo", 
             "Ginásio", "Refeitório", "Muro", "Estacionamento", 
@@ -156,8 +155,13 @@ if nav == "Nova Inspeção":
         ])
         data_ins = c2.date_input("Data", datetime.now())
         c3, c4 = st.columns([2, 1])
-        ambiente = c3.text_input("Ambiente")
-        sala = c4.text_input("Sala")
+        # --- OPÇÕES DE AMBIENTE ATUALIZADAS ---
+        ambiente = c3.selectbox("Ambiente", [
+            "Sala", "Laboratório", "Sanitário Masculino", "Sanitário Feminino", 
+            "Sanitário Masculino PCD", "Sanitário Feminino PCD", 
+            "Área externa", "Passeio", "Sala ADM", "Depósito"
+        ])
+        sala = c4.text_input("Nº da Sala/ID")
         modalidade = st.selectbox("Modalidade", lista_modalidades)
         desc = st.text_area("Detalhamento:", value=sugestoes[disc]['Problemas'][0] if disc in sugestoes else "")
         sol = st.text_area("Encaminhamento:", value=sugestoes[disc]['Soluções'][0] if disc in sugestoes else "")
