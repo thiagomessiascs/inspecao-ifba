@@ -73,13 +73,11 @@ lista_modalidades = ["Serviços contínuos", "Serviços eventuais", "Obras ou re
 def gerar_pdf(lista_dados, titulo_relatorio="RELATÓRIO DE FISCALIZAÇÃO"):
     pdf = FPDF()
     
-    # Se receber apenas um dicionário, transforma em lista
     if isinstance(lista_dados, dict):
         lista_dados = [lista_dados]
 
     for dados in lista_dados:
         pdf.add_page()
-        # Logo
         try:
             if not os.path.exists(NOME_ARQUIVO_LOGO):
                 r = requests.get(URL_LOGO_IFBA, timeout=5)
@@ -150,7 +148,12 @@ if nav == "Nova Inspeção":
     
     with st.form("form_inspecao", clear_on_submit=True):
         c1, c2 = st.columns([2, 1])
-        edificacao = c1.selectbox("Edificação", ["Pavilhão Aulas", "Adm", "Ginásio", "Refeitório", "Outro"])
+        # --- OPÇÕES DE AMBIENTE ATUALIZADAS ---
+        edificacao = c1.selectbox("Edificação", [
+            "Pavilhão de aulas", "Pavilhão acadêmico", "Pavilhão administrativo", 
+            "Ginásio", "Refeitório", "Muro", "Estacionamento", 
+            "Usina solar", "Usina de biodiesel", "Guarita"
+        ])
         data_ins = c2.date_input("Data", datetime.now())
         c3, c4 = st.columns([2, 1])
         ambiente = c3.text_input("Ambiente")
@@ -197,12 +200,8 @@ elif nav == "Histórico":
         filtro = df[df['Campus'] == campus_sel]
         
         if not filtro.empty:
-            # Botão para Gerar o PDF de TODO o histórico do Campus
             st.write(f"Total de registros encontrados: {len(filtro)}")
-            
-            # Converte o DataFrame filtrado em uma lista de dicionários para o PDF
             lista_historico = filtro.to_dict('records')
-            
             pdf_historico = gerar_pdf(lista_historico, titulo_relatorio=f"HISTÓRICO DE PATOLOGIAS - {campus_sel.upper()}")
             
             st.download_button(
