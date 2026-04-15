@@ -17,7 +17,7 @@ NOME_ABA = "Sheet1"
 URL_LOGO_IFBA = "https://raw.githubusercontent.com/thiagomessiascs/inspecao-ifba/main/logo_ifba_vertical.png"
 NOME_ARQUIVO_LOGO = "logo_ifba.png"
 
-# --- DICIONÁRIO TÉCNICO AMPLIADO E AMARRADO (PATOLOGIA POR PATOLOGIA) ---
+# --- DICIONÁRIO TÉCNICO COMPLETO E DETALHADO (AMARRADO POR PATOLOGIA) ---
 sugestoes_v2 = {
     'Alvenaria': {
         'Fissuras de retração térmica': {
@@ -204,14 +204,14 @@ if not st.session_state['autenticado']:
         else: st.error("Senha incorreta!")
     st.stop()
 
-# 3. MAPEAMENTO DE CAMPI
+# 3. MAPEAMENTO DOS PROFISSIONAIS (COM ÍCONES)
 dados_prodin = {
-    "Eng. Thiago": {"campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"]},
-    "Eng. Roger": {"campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"]},
-    "Eng. Laís": {"campi": ["Barreiras", "Jaguaquara", "Jequié"]},
-    "Eng. Larissa": {"campi": ["Campo Formoso", "Juazeiro", "Casa Nova", "Ilhéus", "Ubaitaba", "Camacan"]},
-    "Eng. Marcelo": {"campi": ["Brumado", "Vitória da Conquista"]},
-    "Eng. Fenelon": {"campi": ["Camaçari", "Lauro de Freitas", "Santo Antônio de Jesus", "Simões Filho", "Valença"]}
+    "Eng. Thiago": {"campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"], "icone": "👨‍🚧"},
+    "Eng. Roger": {"campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"], "icone": "👨‍🚧"},
+    "Eng. Laís": {"campi": ["Barreiras", "Jaguaquara", "Jequié"], "icone": "👩‍💼"},
+    "Eng. Larissa": {"campi": ["Campo Formoso", "Juazeiro", "Casa Nova", "Ilhéus", "Ubaitaba", "Camacan"], "icone": "👩‍💼"},
+    "Eng. Marcelo": {"campi": ["Brumado", "Vitória da Conquista"], "icone": "👨‍🚧"},
+    "Eng. Fenelon": {"campi": ["Camaçari", "Lauro de Freitas", "Santo Antônio de Jesus", "Simões Filho", "Valença"], "icone": "👨‍🚧"}
 }
 
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -219,6 +219,11 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 with st.sidebar:
     st.title("⚙️ PRODIN")
     eng_sel = st.selectbox("Engenheiro", list(dados_prodin.keys()))
+    
+    # --- FIGURA CENTRALIZADA ABAIXO DO SELETOR DE ENGENHEIRO ---
+    icone_profissional = dados_prodin[eng_sel]["icone"]
+    st.markdown(f"<h1 style='text-align: center; margin-top: -15px;'>{icone_profissional}</h1>", unsafe_allow_html=True)
+    
     campus_sel = st.selectbox("Campus", dados_prodin[eng_sel]["campi"])
     nav = st.radio("Ir para:", ["Nova Inspeção", "Histórico"])
 
@@ -235,13 +240,11 @@ if nav == "Nova Inspeção":
         data_ins = c3.date_input("Data", datetime.now())
         modalidade = c4.selectbox("Modalidade", ["Serviços contínuos", "Serviços eventuais", "Obras ou reformas"])
 
-        # LOGICA DE AMARRAÇÃO CORRIGIDA (DINÂMICA POR PATOLOGIA)
+        # Lógica de amarração técnica
         lista_patologias = list(sugestoes_v2[disc_escolhida].keys()) if disc_escolhida in sugestoes_v2 else [""]
         patologia_sel = st.selectbox("Patologia Identificada", lista_patologias)
         
-        # O sistema busca os dados específicos da patologia selecionada na hora
         dados_patologia = sugestoes_v2.get(disc_escolhida, {}).get(patologia_sel, {"solucao": "", "obs": ""})
-        
         sol_automatica = st.text_input("Solução Técnica (Automática):", value=dados_patologia['solucao'])
         obs_final = st.text_area("Observações (Procedimento de Execução):", value=dados_patologia['obs'])
         
