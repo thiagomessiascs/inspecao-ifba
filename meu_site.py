@@ -12,7 +12,7 @@ import os
 # 1. CONFIGURAÇÕES DA PÁGINA
 st.set_page_config(page_title="Sistema PRODIN - IFBA", layout="centered", page_icon="📋")
 
-# 🔗 CONFIGURAÇÕES DE CONEXÃO (MANTIDAS)
+# 🔗 CONFIGURAÇÕES DE CONEXÃO
 URL_PLANILHA = "https://docs.google.com/spreadsheets/d/1i2-Sd9853TrdgUGSo9QRX5sKD7kFmsbuqih9FlF-7F8/edit"
 NOME_ABA = "Sheet1" 
 URL_LOGO_IFBA = "https://raw.githubusercontent.com/thiagomessiascs/inspecao-ifba/main/logo_ifba_vertical.png"
@@ -69,77 +69,73 @@ sugestoes = {
 lista_disciplinas = ["Escolha..."] + list(sugestoes.keys()) + ["Outras"]
 lista_modalidades = ["Serviços contínuos", "Serviços eventuais", "Obras ou reformas"]
 
-# 4. FUNÇÃO PDF MELHORADA
-def gerar_pdf(dados):
+# 4. FUNÇÃO PDF (SUPORTE A MÚLTIPLAS PÁGINAS PARA HISTÓRICO)
+def gerar_pdf(lista_dados, titulo_relatorio="RELATÓRIO DE FISCALIZAÇÃO"):
     pdf = FPDF()
-    pdf.add_page()
     
-    # Header - Logo
-    try:
-        if not os.path.exists(NOME_ARQUIVO_LOGO):
-            r = requests.get(URL_LOGO_IFBA, timeout=5)
-            if r.status_code == 200:
-                with open(NOME_ARQUIVO_LOGO, "wb") as f:
-                    f.write(r.content)
-        pdf.image(NOME_ARQUIVO_LOGO, x=87, y=10, w=35)
-    except: pass
-        
-    pdf.set_y(55)
-    pdf.set_font("Arial", 'B', 14)
-    pdf.cell(190, 10, "RELATÓRIO DE FISCALIZAÇÃO TÉCNICA", ln=True, align='C')
-    pdf.set_font("Arial", 'I', 10)
-    pdf.cell(190, 5, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align='C')
-    pdf.ln(10)
-    
-    # Tabela de Dados Principais
-    pdf.set_font("Arial", 'B', 11)
-    pdf.set_fill_color(240, 240, 240)
-    
-    colunas_texto = {
-        "Data": dados.get("Data"),
-        "Campus": dados.get("Campus"),
-        "Engenheiro Responsável": dados.get("Engenheiro"),
-        "Edificação": dados.get("Edificacao"),
-        "Local (Ambiente/Sala)": f"{dados.get('Ambiente')} / {dados.get('Sala')}",
-        "Disciplina Técnica": dados.get("Disciplina"),
-        "Modalidade": dados.get("Modalidade")
-    }
+    # Se receber apenas um dicionário, transforma em lista
+    if isinstance(lista_dados, dict):
+        lista_dados = [lista_dados]
 
-    for label, valor in colunas_texto.items():
-        pdf.set_font("Arial", 'B', 10)
-        pdf.cell(50, 8, f" {label}:", 1, 0, 'L', True)
-        pdf.set_font("Arial", '', 10)
-        pdf.cell(140, 8, f" {valor}", 1, 1, 'L')
-
-    # Seções de texto longo (Descricao e Solucoes)
-    pdf.ln(5)
-    pdf.set_font("Arial", 'B', 10)
-    pdf.cell(190, 8, " Detalhamento da Patologia / Ocorrência:", 1, 1, 'L', True)
-    pdf.set_font("Arial", '', 10)
-    pdf.multi_cell(190, 7, f" {dados.get('Descricao')}", 1, 'L')
-
-    pdf.ln(2)
-    pdf.set_font("Arial", 'B', 10)
-    pdf.cell(190, 8, " Encaminhamentos e Sugestões de Solução:", 1, 1, 'L', True)
-    pdf.set_font("Arial", '', 10)
-    pdf.multi_cell(190, 7, f" {dados.get('Solucoes')}", 1, 'L')
-
-    # Foto da Inspeção
-    if dados.get("Foto_Dados"):
+    for dados in lista_dados:
+        pdf.add_page()
+        # Logo
         try:
-            pdf.ln(10)
-            img_byte = base64.b64decode(dados["Foto_Dados"])
-            img_io = io.BytesIO(img_byte)
-            
-            # Centralizar imagem: largura da página (210) - largura da imagem (120) / 2 = 45
-            pdf.set_font("Arial", 'B', 10)
-            pdf.cell(190, 8, " Registro Fotográfico:", 0, 1, 'C')
-            pdf.image(img_io, x=45, w=120)
+            if not os.path.exists(NOME_ARQUIVO_LOGO):
+                r = requests.get(URL_LOGO_IFBA, timeout=5)
+                if r.status_code == 200:
+                    with open(NOME_ARQUIVO_LOGO, "wb") as f:
+                        f.write(r.content)
+            pdf.image(NOME_ARQUIVO_LOGO, x=87, y=10, w=35)
         except: pass
+            
+        pdf.set_y(55)
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(190, 10, titulo_relatorio, ln=True, align='C')
+        pdf.set_font("Arial", 'I', 9)
+        pdf.cell(190, 5, f"Documento integrante do acervo PRODIN - IFBA", ln=True, align='C')
+        pdf.ln(10)
+        
+        pdf.set_fill_color(240, 240, 240)
+        colunas_texto = {
+            "Data": dados.get("Data"),
+            "Campus": dados.get("Campus"),
+            "Engenheiro": dados.get("Engenheiro"),
+            "Edificação": dados.get("Edificacao"),
+            "Local": f"{dados.get('Ambiente')} / {dados.get('Sala')}",
+            "Disciplina": dados.get("Disciplina"),
+            "Modalidade": dados.get("Modalidade")
+        }
+
+        for label, valor in colunas_texto.items():
+            pdf.set_font("Arial", 'B', 9)
+            pdf.cell(45, 7, f" {label}:", 1, 0, 'L', True)
+            pdf.set_font("Arial", '', 9)
+            pdf.cell(145, 7, f" {valor}", 1, 1, 'L')
+
+        pdf.ln(5)
+        pdf.set_font("Arial", 'B', 9)
+        pdf.cell(190, 7, " Detalhamento da Ocorrência:", 1, 1, 'L', True)
+        pdf.set_font("Arial", '', 9)
+        pdf.multi_cell(190, 6, f" {dados.get('Descricao')}", 1, 'L')
+
+        pdf.ln(2)
+        pdf.set_font("Arial", 'B', 9)
+        pdf.cell(190, 7, " Encaminhamentos:", 1, 1, 'L', True)
+        pdf.set_font("Arial", '', 9)
+        pdf.multi_cell(190, 6, f" {dados.get('Solucoes')}", 1, 'L')
+
+        if dados.get("Foto_Dados"):
+            try:
+                pdf.ln(5)
+                img_byte = base64.b64decode(dados["Foto_Dados"])
+                img_io = io.BytesIO(img_byte)
+                pdf.image(img_io, x=55, w=100)
+            except: pass
 
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
-# 5. CONEXÃO E INTERFACE (LÓGICA MANTIDA)
+# 5. CONEXÃO
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 with st.sidebar:
@@ -156,12 +152,10 @@ if nav == "Nova Inspeção":
         c1, c2 = st.columns([2, 1])
         edificacao = c1.selectbox("Edificação", ["Pavilhão Aulas", "Adm", "Ginásio", "Refeitório", "Outro"])
         data_ins = c2.date_input("Data", datetime.now())
-        
         c3, c4 = st.columns([2, 1])
         ambiente = c3.text_input("Ambiente")
         sala = c4.text_input("Sala")
         modalidade = st.selectbox("Modalidade", lista_modalidades)
-        
         desc = st.text_area("Detalhamento:", value=sugestoes[disc]['Problemas'][0] if disc in sugestoes else "")
         sol = st.text_area("Encaminhamento:", value=sugestoes[disc]['Soluções'][0] if disc in sugestoes else "")
         foto = st.file_uploader("📸 Foto", type=['jpg', 'png', 'jpeg'])
@@ -186,23 +180,43 @@ if nav == "Nova Inspeção":
                 df_atual = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
                 df_novo = pd.concat([df_atual, pd.DataFrame([reg])], ignore_index=True)
                 conn.update(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, data=df_novo)
-                st.success("✅ Salvo com sucesso na planilha!")
+                st.success("✅ Salvo com sucesso!")
                 st.session_state['ultimo_relatorio'] = reg
             except Exception as e:
-                st.error(f"Erro ao salvar: {e}")
+                st.error(f"Erro: {e}")
 
     if 'ultimo_relatorio' in st.session_state:
-        st.download_button("📥 Baixar Relatório PDF", 
+        st.download_button("📥 Baixar PDF da Última Inspeção", 
                            data=gerar_pdf(st.session_state['ultimo_relatorio']), 
-                           file_name=f"Relatorio_{campus_sel}_{datetime.now().strftime('%d_%m')}.pdf")
+                           file_name=f"Inspecao_{campus_sel}.pdf")
 
 elif nav == "Histórico":
-    st.header(f"📂 Histórico: {campus_sel}")
+    st.header(f"📂 Histórico Completo: {campus_sel}")
     try:
         df = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
-        filtro = df[df['Campus'] == campus_sel].drop(columns=['Foto_Dados'], errors='ignore')
-        st.dataframe(filtro)
-    except:
-        st.warning("Histórico ainda indisponível.")
+        filtro = df[df['Campus'] == campus_sel]
+        
+        if not filtro.empty:
+            # Botão para Gerar o PDF de TODO o histórico do Campus
+            st.write(f"Total de registros encontrados: {len(filtro)}")
+            
+            # Converte o DataFrame filtrado em uma lista de dicionários para o PDF
+            lista_historico = filtro.to_dict('records')
+            
+            pdf_historico = gerar_pdf(lista_historico, titulo_relatorio=f"HISTÓRICO DE PATOLOGIAS - {campus_sel.upper()}")
+            
+            st.download_button(
+                label="📥 BAIXAR HISTÓRICO COMPLETO (PDF)",
+                data=pdf_historico,
+                file_name=f"Historico_Patologias_{campus_sel}.pdf",
+                mime="application/pdf"
+            )
+            
+            st.divider()
+            st.dataframe(filtro.drop(columns=['Foto_Dados'], errors='ignore'))
+        else:
+            st.info("Nenhuma patologia registrada para este campus ainda.")
+    except Exception as e:
+        st.error(f"Erro ao carregar histórico: {e}")
 
 st.markdown("<hr><center>Desenvolvido por: Thiago Messias Carvalho Soares & Roger Ramos Santana | PRODIN 2026</center>", unsafe_allow_html=True)
