@@ -168,12 +168,11 @@ if nav == "Nova Inspeção":
         prob_sugestao = sugestoes[disc_escolhida]['Problemas'] if disc_escolhida in sugestoes else [""]
         sol_sugestao = sugestoes[disc_escolhida]['Soluções'] if disc_escolhida in sugestoes else [""]
         
-        # REMOVIDO: Botão Detalhamento Final. MANTIDO: Seleção de Patologia para a Planilha.
         patologia_sel = st.selectbox("Patologia Identificada (Sugestão)", prob_sugestao)
-        
-        # ALTERADO: Nomes dos campos conforme solicitado
         sol_sel = st.selectbox("Solução Técnica", sol_sugestao)
-        obs_final = st.text_area("Observações:", value=sol_sel)
+        
+        # ALTERADO: Campo Observações agora inicia em branco
+        obs_final = st.text_area("Observações:", value="")
         
         foto = st.file_uploader("📸 Foto da Patologia", type=['jpg', 'png', 'jpeg'])
 
