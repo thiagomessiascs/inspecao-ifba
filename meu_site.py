@@ -17,31 +17,41 @@ NOME_ABA = "Sheet1"
 URL_LOGO_IFBA = "https://raw.githubusercontent.com/thiagomessiascs/inspecao-ifba/main/logo_ifba_vertical.png"
 NOME_ARQUIVO_LOGO = "logo_ifba.png"
 
-# --- DICIONÁRIO COMPLETO DE PATOLOGIAS E SOLUÇÕES ---
-sugestoes = {
+# --- DICIONÁRIO ESTRUTURADO (AMARRADO) ---
+sugestoes_v2 = {
     'Alvenaria': {
-        'Problemas': ['Fissuras de retração térmica', 'Trincas em diagonal (recalque)', 'Umidade por capilaridade (rodapé)', 'Eflorescência', 'Descolamento de emboço/reboco', 'Fissuras em juntas de dilatação'],
-        'Soluções': ['Tratamento com tela de poliéster e selante', 'Grampeamento com barras de aço e graute', 'Impermeabilização polimérica de rodapé', 'Limpeza química e hidrofugação', 'Remoção e recomposição de argamassa']
+        'Fissuras de retração térmica': {
+            'solucao': 'Tratamento com tela de poliéster e selante elastomérico',
+            'obs': 'Procedimento: Abrir a fissura em formato de "V", limpar, aplicar fundo preparador, preencher com selante e cobrir com tela de poliéster antes do acabamento.'
+        },
+        'Umidade por capilaridade (rodapé)': {
+            'solucao': 'Impermeabilização polimérica de rodapé',
+            'obs': 'Procedimento: Remover o reboco afetado até 50cm acima da mancha, aplicar argamassa impermeabilizante em 3 demãos cruzadas e refazer o emboço com aditivo hidrófugo.'
+        }
     },
     'Estrutura': {
-        'Problemas': ['Corrosão de armaduras (ferro exposto)', 'Fissuras estruturais em vigas/pilares', 'Segregação do concreto (ninhos)', 'Flechas excessivas em lajes', 'Carbonatação do concreto', 'Desagregação por ataque químico'],
-        'Soluções': ['Escovamento, passivação e reparo com graute', 'Injeção de resina epóxi', 'Estancamento com argamassa estrutural', 'Reforço com fibra de carbono ou chapas metálicas', 'Pintura de proteção anticarbonatação']
+        'Corrosão de armaduras (ferro exposto)': {
+            'solucao': 'Escovamento, passivação e reparo com graute',
+            'obs': 'Procedimento: Delimitar a área, remover concreto degradado, limpar armadura com escova de aço, aplicar inibidor de corrosão e recompor seção com graute estrutural.'
+        }
     },
     'Cobertura': {
-        'Problemas': ['Telhas quebradas ou fissuradas', 'Calhas obstruídas ou com corrosão', 'Infiltração em rufos e contra-rufos', 'Oxidação em estrutura metálica', 'Deformação em tesouras de madeira', 'Pontos de gotejamento generalizado'],
-        'Soluções': ['Substituição de peças danificadas', 'Limpeza e aplicação de pintura betuminosa', 'Vedação com PU 40 e manta aluminizada', 'Lixamento e pintura anticorrosiva (fundo/acabamento)', 'Substituição ou reforço de elementos estruturais']
+        'Infiltração em rufos e contra-rufos': {
+            'solucao': 'Vedação com PU 40 e manta aluminizada',
+            'obs': 'Procedimento: Limpar a superfície do rufo, remover vedações antigas ressecadas, aplicar cordão de PU 40 nas juntas e reforçar com fita aluminizada autocolante.'
+        }
     },
     'Hidráulica': {
-        'Problemas': ['Vazamento aparente em conexões', 'Baixa pressão terminal', 'Obstrução em ramais de esgoto', 'Infiltração por falha em impermeabilização', 'Caixa d\'água com fissuras', 'Retorno de odores por falta de fecho hídrico'],
-        'Soluções': ['Substituição de tubulações/conexões', 'Instalação de pressurizador ou limpeza de filtros', 'Desobstrução mecânica e revisão de caixas de inspeção', 'Refação de manta asfáltica/polimérica', 'Reparo interno com argamassa impermeável']
+        'Vazamento aparente em conexões': {
+            'solucao': 'Substituição de conexões e vedação',
+            'obs': 'Procedimento: Fechar o registro, cortar o trecho avariado, instalar novas conexões com adesivo plástico ou fita veda-rosca e testar estanqueidade.'
+        }
     },
     'Elétrica': {
-        'Problemas': ['Fios expostos ou sem isolamento', 'Quadro de energia sem identificação', 'Disjuntores superaquecidos', 'Falta de aterramento (choques)', 'Ausência de dispositivos DR/DPS', 'Luminárias com reator avariado'],
-        'Soluções': ['Acondicionamento em eletrodutos e canaletas', 'Etiquetagem e diagramação de circuitos', 'Redimensionamento de carga e troca de componentes', 'Instalação de hastes de aterramento e malha', 'Adequação à NBR 5410 com DR e DPS']
-    },
-    'Impermeabilização': {
-        'Problemas': ['Infiltração em lajes expostas', 'Bolhas em mantas asfálticas', 'Umidade em reservatórios', 'Juntas de dilatação degradadas'],
-        'Soluções': ['Aplicação de nova camada impermeabilizante', 'Reparo localizado com maçarico e primer', 'Cristalização de reservatórios', 'Substituição de mastique e delimitador de profundidade']
+        'Fios expostos ou sem isolamento': {
+            'solucao': 'Acondicionamento em eletrodutos e isolamento técnico',
+            'obs': 'Procedimento: Desligar o circuito, revisar as emendas com fita isolante de alta fusão e organizar a fiação dentro de canaletas ou eletrodutos normatizados.'
+        }
     }
 }
 
@@ -102,9 +112,8 @@ def gerar_pdf_completo(dados):
             pdf.ln(5)
             pdf.image(img_io, x=45, w=120)
         except: pass
-    conclusao_txt = (f"Com base na análise da disciplina {dados['Disciplina']}, recomenda-se seguir os encaminhamentos "
-                     f"propostos na seção de 'Soluções' deste relatório para garantir a integridade da edificação.")
-    pdf.adicionar_secao("3. CONCLUSÃO E RECOMENDAÇÕES", conclusao_txt)
+    conclusao_txt = (f"Com base na análise da disciplina {dados['Disciplina']}, recomenda-se seguir os encaminhamentos propostos.")
+    pdf.adicionar_secao("3. CONCLUSÃO", conclusao_txt)
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
 # 2. SISTEMA DE ACESSO
@@ -118,8 +127,7 @@ if not st.session_state['autenticado']:
         if senha == "IFBA2026":
             st.session_state['autenticado'] = True
             st.rerun()
-        else:
-            st.error("Senha incorreta!")
+        else: st.error("Senha incorreta!")
     st.stop()
 
 # 3. MAPEAMENTO DE CAMPI
@@ -143,36 +151,26 @@ with st.sidebar:
 if nav == "Nova Inspeção":
     st.header(f"📋 Nova Inspeção - {campus_sel}")
     
-    disc_escolhida = st.selectbox("Disciplina Técnica", ["Escolha..."] + list(sugestoes.keys()))
+    disc_escolhida = st.selectbox("Disciplina Técnica", ["Escolha..."] + list(sugestoes_v2.keys()))
 
     with st.form("form_inspecao", clear_on_submit=True):
         c1, c2 = st.columns([1, 1])
-        
-        edificacao = c1.selectbox("Edificação", [
-            "Pavilhão de aulas", "Pavilhão acadêmico", "Pavilhão administrativo", 
-            "Ginásio", "Refeitório", "Muro", "Estacionamento", 
-            "Usina solar", "Usina de biodiesel", "Guarita"
-        ])
-        
-        ambiente_sel = c2.selectbox("Ambiente", [
-            "Sanitário Masculino", "Sanitário Masculino PDC", "Sanitário Feminino", 
-            "Sanitário Feminino PDC", "Sala de aula", "Sala ADM", "Depósito", 
-            "Laboratório", "Auditório", "Área externa", "Circulação", 
-            "Pátio", "Corredor", "Passeio"
-        ])
+        edificacao = c1.selectbox("Edificação", ["Pavilhão de aulas", "Pavilhão acadêmico", "Pavilhão administrativo", "Ginásio", "Refeitório", "Muro", "Estacionamento", "Usina solar", "Usina de biodiesel", "Guarita"])
+        ambiente_sel = c2.selectbox("Ambiente", ["Sanitário Masculino", "Sanitário Masculino PDC", "Sanitário Feminino", "Sanitário Feminino PDC", "Sala de aula", "Sala ADM", "Depósito", "Laboratório", "Auditório", "Área externa", "Circulação", "Pátio", "Corredor", "Passeio"])
         
         c3, c4 = st.columns([1, 1])
         data_ins = c3.date_input("Data", datetime.now())
         modalidade = c4.selectbox("Modalidade", ["Serviços contínuos", "Serviços eventuais", "Obras ou reformas"])
 
-        prob_sugestao = sugestoes[disc_escolhida]['Problemas'] if disc_escolhida in sugestoes else [""]
-        sol_sugestao = sugestoes[disc_escolhida]['Soluções'] if disc_escolhida in sugestoes else [""]
+        # LÓGICA DE AMARRAÇÃO
+        lista_patologias = list(sugestoes_v2[disc_escolhida].keys()) if disc_escolhida in sugestoes_v2 else [""]
+        patologia_sel = st.selectbox("Patologia Identificada", lista_patologias)
         
-        patologia_sel = st.selectbox("Patologia Identificada (Sugestão)", prob_sugestao)
-        sol_sel = st.selectbox("Solução Técnica", sol_sugestao)
+        # Busca automática no dicionário v2
+        dados_patologia = sugestoes_v2.get(disc_escolhida, {}).get(patologia_sel, {"solucao": "", "obs": ""})
         
-        # ALTERADO: Campo Observações agora inicia em branco
-        obs_final = st.text_area("Observações:", value="")
+        sol_automatica = st.text_input("Solução Técnica (Automática):", value=dados_patologia['solucao'])
+        obs_final = st.text_area("Observações (Procedimento de Execução):", value=dados_patologia['obs'])
         
         foto = st.file_uploader("📸 Foto da Patologia", type=['jpg', 'png', 'jpeg'])
 
@@ -189,7 +187,7 @@ if nav == "Nova Inspeção":
                 "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, 
                 "Edificacao": edificacao, "Disciplina": disc_escolhida, "Ambiente": ambiente_sel, 
                 "Sala": "N/A", "Modalidade": modalidade, "Descricao": patologia_sel, 
-                "Solucoes": obs_final, "Engenheiro": eng_sel, "Foto_Dados": f_b64
+                "Solucoes": f"{sol_automatica} | {obs_final}", "Engenheiro": eng_sel, "Foto_Dados": f_b64
             }
             
             try:
@@ -198,20 +196,16 @@ if nav == "Nova Inspeção":
                 conn.update(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, data=df_novo)
                 st.success("✅ Salvo com sucesso!")
                 st.session_state['ultimo_relatorio'] = reg
-            except Exception as e:
-                st.error(f"Erro: {e}")
+            except Exception as e: st.error(f"Erro: {e}")
 
     if 'ultimo_relatorio' in st.session_state:
-        st.download_button("📥 Baixar PDF do Relatório", 
-                           data=gerar_pdf_completo(st.session_state['ultimo_relatorio']), 
-                           file_name=f"Inspecao_{campus_sel}.pdf")
+        st.download_button("📥 Baixar PDF do Relatório", data=gerar_pdf_completo(st.session_state['ultimo_relatorio']), file_name=f"Inspecao_{campus_sel}.pdf")
 
 elif nav == "Histórico":
     st.header(f"📂 Histórico: {campus_sel}")
     try:
         df = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
         st.dataframe(df[df['Campus'] == campus_sel].drop(columns=['Foto_Dados'], errors='ignore'))
-    except:
-        st.warning("Histórico indisponível.")
+    except: st.warning("Histórico indisponível.")
 
 st.markdown("<hr><center>Desenvolvido por: Thiago Messias Carvalho Soares & Roger Ramos Santana | PRODIN 2026</center>", unsafe_allow_html=True)
