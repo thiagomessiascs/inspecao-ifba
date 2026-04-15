@@ -220,7 +220,6 @@ with st.sidebar:
     st.title("⚙️ PRODIN")
     eng_sel = st.selectbox("Engenheiro", list(dados_prodin.keys()))
     
-    # --- CÓDIGO DO ÍCONE CIRCULAR CENTRALIZADO E AMPLIADO ---
     icone_profissional = dados_prodin[eng_sel]["icone"]
     st.markdown(f"""
     <div style="display: flex; justify-content: center; margin-top: 10px; margin-bottom: 25px;">
@@ -244,6 +243,12 @@ with st.sidebar:
     
     campus_sel = st.selectbox("Campus", dados_prodin[eng_sel]["campi"])
     nav = st.radio("Ir para:", ["Nova Inspeção", "Histórico"])
+    
+    # --- BOTÃO DE SAIR ---
+    st.markdown("<br>" * 5, unsafe_allow_html=True)
+    if st.button("🚪 Sair do Sistema", use_container_width=True):
+        st.session_state['autenticado'] = False
+        st.rerun()
 
 if nav == "Nova Inspeção":
     st.header(f"📋 Nova Inspeção - {campus_sel}")
@@ -298,7 +303,39 @@ elif nav == "Histórico":
     st.header(f"📂 Histórico: {campus_sel}")
     try:
         df = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
-        st.dataframe(df[df['Campus'] == campus_sel].drop(columns=['Foto_Dados'], errors='ignore'))
-    except: st.warning("Histórico indisponível.")
+        df_filtrado = df[df['Campus'] == campus_sel].copy()
+        
+        if not df_filtrado.empty:
+            # Seleção de qual registro editar
+            indices_disponiveis = df_filtrado.index.tolist()
+            idx_para_editar = st.selectbox("Selecione o registro para Editar ou Visualizar:", indices_disponiveis, format_func=lambda x: f"ID {x} - {df_filtrado.loc[x, 'Data']} - {df_filtrado.loc[x, 'Descricao']}")
+            
+            with st.expander("📝 Editar Registro Selecionado", expanded=False):
+                # Campos preenchidos com os dados atuais
+                edit_edificacao = st.text_input("Edificação", value=df_filtrado.loc[idx_para_editar, 'Edificacao'])
+                edit_ambiente = st.text_input("Ambiente", value=df_filtrado.loc[idx_para_editar, 'Ambiente'])
+                edit_desc = st.text_input("Patologia", value=df_filtrado.loc[idx_para_editar, 'Descricao'])
+                edit_sol = st.text_area("Soluções/Observações", value=df_filtrado.loc[idx_para_editar, 'Solucoes'])
+                
+                if st.button("💾 Salvar Alterações"):
+                    df.loc[idx_para_editar, 'Edificacao'] = edit_edificacao
+                    df.loc[idx_para_editar, 'Ambiente'] = edit_ambiente
+                    df.loc[idx_para_editar, 'Descricao'] = edit_desc
+                    df.loc[idx_para_editar, 'Solucoes'] = edit_sol
+                    
+                    try:
+                        conn.update(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, data=df)
+                        st.success("✅ Registro atualizado com sucesso!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erro ao atualizar: {e}")
+            
+            # Exibição da tabela (sem a coluna de foto que é pesada)
+            st.dataframe(df_filtrado.drop(columns=['Foto_Dados'], errors='ignore'))
+        else:
+            st.info("Nenhum registro encontrado para este campus.")
+            
+    except Exception as e: 
+        st.warning(f"Histórico indisponível no momento. Detalhe: {e}")
 
 st.markdown("<hr><center>Desenvolvido por: Thiago Messias Carvalho Soares & Roger Ramos Santana | PRODIN 2026</center>", unsafe_allow_html=True)
