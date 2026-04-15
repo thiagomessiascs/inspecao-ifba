@@ -204,14 +204,14 @@ if not st.session_state['autenticado']:
         else: st.error("Senha incorreta!")
     st.stop()
 
-# 3. MAPEAMENTO DOS PROFISSIONAIS (COM ÍCONES)
+# 3. MAPEAMENTO DOS PROFISSIONAIS (COM ÍCONES ORIGINAIS)
 dados_prodin = {
-    "Eng. Thiago": {"campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"], "icone": "👨‍🚧"},
-    "Eng. Roger": {"campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"], "icone": "👨‍🚧"},
+    "Eng. Thiago": {"campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"], "icone": "👨‍💼"},
+    "Eng. Roger": {"campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"], "icone": "👨‍💼"},
     "Eng. Laís": {"campi": ["Barreiras", "Jaguaquara", "Jequié"], "icone": "👩‍💼"},
     "Eng. Larissa": {"campi": ["Campo Formoso", "Juazeiro", "Casa Nova", "Ilhéus", "Ubaitaba", "Camacan"], "icone": "👩‍💼"},
-    "Eng. Marcelo": {"campi": ["Brumado", "Vitória da Conquista"], "icone": "👨‍🚧"},
-    "Eng. Fenelon": {"campi": ["Camaçari", "Lauro de Freitas", "Santo Antônio de Jesus", "Simões Filho", "Valença"], "icone": "👨‍🚧"}
+    "Eng. Marcelo": {"campi": ["Brumado", "Vitória da Conquista"], "icone": "👨‍💼"},
+    "Eng. Fenelon": {"campi": ["Camaçari", "Lauro de Freitas", "Santo Antônio de Jesus", "Simões Filho", "Valença"], "icone": "👨‍💼"}
 }
 
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -220,9 +220,26 @@ with st.sidebar:
     st.title("⚙️ PRODIN")
     eng_sel = st.selectbox("Engenheiro", list(dados_prodin.keys()))
     
-    # --- FIGURA CENTRALIZADA ABAIXO DO SELETOR DE ENGENHEIRO ---
+    # --- CÓDIGO DO ÍCONE CIRCULAR E CENTRALIZADO ---
     icone_profissional = dados_prodin[eng_sel]["icone"]
-    st.markdown(f"<h1 style='text-align: center; margin-top: -15px;'>{icone_profissional}</h1>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="display: flex; justify-content: center; margin-top: 10px; margin-bottom: 20px;">
+        <div style="
+            width: 100px; 
+            height: 100px; 
+            background-color: #f0f2f6; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 60px;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+            border: 3px solid #007bff;
+        ">
+            {icone_profissional}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     campus_sel = st.selectbox("Campus", dados_prodin[eng_sel]["campi"])
     nav = st.radio("Ir para:", ["Nova Inspeção", "Histórico"])
@@ -240,7 +257,6 @@ if nav == "Nova Inspeção":
         data_ins = c3.date_input("Data", datetime.now())
         modalidade = c4.selectbox("Modalidade", ["Serviços contínuos", "Serviços eventuais", "Obras ou reformas"])
 
-        # Lógica de amarração técnica
         lista_patologias = list(sugestoes_v2[disc_escolhida].keys()) if disc_escolhida in sugestoes_v2 else [""]
         patologia_sel = st.selectbox("Patologia Identificada", lista_patologias)
         
