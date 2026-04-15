@@ -14,8 +14,8 @@ st.set_page_config(page_title="Sistema PRODIN - IFBA", layout="centered", page_i
 
 # 🔗 LINKS ATUALIZADOS - CONTA: prodinemcampus@gmail.com
 URL_PLANILHA = "https://docs.google.com/spreadsheets/d/1i2-Sd9853TrdgUGso9QRX5sKD7kFmsbuqih9FIF-7F8/edit#gid=0"
-NOME_ABA = "Página1" 
-URL_LOGO_IFBA = "https://portal.ifba.edu.br/dgcom/documentos-e-manuais-arquivos/manuais/ifba_marca_vertical-01.png/@@download/file/IFBA_MARCA_vertical-01.png"
+NOME_ABA = "Sheet1" # Ajustado conforme a imagem da sua planilha
+URL_LOGO_IFBA = "https://raw.githubusercontent.com/thiagomessiascs/inspecao-ifba/main/logo_ifba_vertical.png"
 NOME_ARQUIVO_LOGO = "logo_ifba_vertical.png"
 
 # 2. SISTEMA DE ACESSO
@@ -74,25 +74,39 @@ def gerar_pdf(dados):
     pdf = FPDF()
     pdf.add_page()
     if not os.path.exists(NOME_ARQUIVO_LOGO):
-        try: res = requests.get(URL_LOGO_IFBA); open(NOME_ARQUIVO_LOGO, "wb").write(res.content)
+        try: 
+            res = requests.get(URL_LOGO_IFBA)
+            if res.status_code == 200:
+                with open(NOME_ARQUIVO_LOGO, "wb") as f:
+                    f.write(res.content)
         except: pass
-    if os.path.exists(NOME_ARQUIVO_LOGO): pdf.image(NOME_ARQUIVO_LOGO, x=87, y=15, w=35) 
+    
+    if os.path.exists(NOME_ARQUIVO_LOGO): 
+        pdf.image(NOME_ARQUIVO_LOGO, x=87, y=15, w=35) 
+    
     pdf.set_y(60)
-    pdf.set_font("Arial", 'B', 16); pdf.cell(190, 10, "RELATÓRIO DE FISCALIZAÇÃO - IFBA", ln=True, align='C')
-    pdf.set_font("Arial", '', 12); pdf.cell(190, 8, f"Campus: {dados.get('Campus')}", ln=True, align='C')
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(190, 10, "RELATÓRIO DE FISCALIZAÇÃO - IFBA", ln=True, align='C')
+    pdf.set_font("Arial", '', 12)
+    pdf.cell(190, 8, f"Campus: {dados.get('Campus')}", ln=True, align='C')
     pdf.ln(10)
+    
     for k, v in dados.items():
         if k != "Foto_Dados":
-            pdf.set_font("Arial", 'B', 10); pdf.cell(45, 8, f"{k}:", 1)
-            pdf.set_font("Arial", '', 10); pdf.multi_cell(0, 8, f" {str(v)}", 1)
+            pdf.set_font("Arial", 'B', 10)
+            pdf.cell(45, 8, f"{k}:", 1)
+            pdf.set_font("Arial", '', 10)
+            pdf.multi_cell(0, 8, f" {str(v)}", 1)
+            
     if dados.get("Foto_Dados"):
         try:
             img_data = base64.b64decode(dados["Foto_Dados"])
-            pdf.ln(5); pdf.image(io.BytesIO(img_data), x=50, w=110)
+            pdf.ln(5)
+            pdf.image(io.BytesIO(img_data), x=50, w=110)
         except: pass
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
-# 5. INTERFACE E SALVAMENTO
+# 5. CONEXÃO E INTERFACE
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 with st.sidebar:
@@ -109,6 +123,7 @@ if nav == "Nova Inspeção":
         c1, c2 = st.columns([2, 1])
         edificacao = c1.selectbox("Edificação", ["Pavilhão Aulas", "Adm", "Ginásio", "Refeitório", "Outro"])
         data_ins = c2.date_input("Data", datetime.now())
+        
         c3, c4 = st.columns([2, 1])
         ambiente = c3.text_input("Ambiente")
         sala = c4.text_input("Sala")
@@ -124,27 +139,38 @@ if nav == "Nova Inspeção":
             desc = st.text_area("Detalhamento:")
             sol = st.text_area("Encaminhamento:")
             
-        foto = st.file_uploader("📸 Foto", type=['jpg', 'png'])
+        foto = st.file_uploader("📸 Foto", type=['jpg', 'png', 'jpeg'])
 
         if st.form_submit_button("✅ Salvar Inspeção"):
             f_b64 = ""
             if foto:
-                img = Image.open(foto); img.thumbnail((600, 600))
-                buf = io.BytesIO(); img.save(buf, format="JPEG", quality=70)
+                img = Image.open(foto)
+                img = img.convert("RGB")
+                img.thumbnail((600, 600))
+                buf = io.BytesIO()
+                img.save(buf, format="JPEG", quality=70)
                 f_b64 = base64.b64encode(buf.getvalue()).decode()
             
             reg = {
-                "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, "Edificacao": edificacao,
-                "Disciplina": disc, "Ambiente": ambiente, "Sala": sala, "Modalidade": modalidade,
-                "Descricao": desc, "Solucoes": sol, "Engenheiro": eng_sel, "Foto_Dados": f_b64
+                "Data": data_ins.strftime("%d/%m/%Y"), 
+                "Campus": campus_sel, 
+                "Edificacao": edificacao,
+                "Disciplina": disc, 
+                "Ambiente": ambiente, 
+                "Sala": sala, 
+                "Modalidade": modalidade,
+                "Descricao": desc, 
+                "Solucoes": sol, 
+                "Engenheiro": eng_sel, 
+                "Foto_Dados": f_b64
             }
             
             try:
-                # Lógica robusta de atualização
+                # Lê os dados existentes para concatenar
                 df_antigo = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
                 df_novo = pd.concat([df_antigo, pd.DataFrame([reg])], ignore_index=True)
                 conn.update(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, data=df_novo)
-                st.success("✅ Salvo com sucesso!")
+                st.success("✅ Inspeção salva com sucesso na planilha!")
                 st.session_state['ultimo'] = reg
             except Exception as e:
                 st.error(f"Erro ao salvar: {e}")
@@ -158,6 +184,6 @@ elif nav == "Histórico":
         df = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
         st.dataframe(df[df['Campus'] == campus_sel].drop(columns=['Foto_Dados'], errors='ignore'))
     except:
-        st.warning("Histórico indisponível.")
+        st.warning("Histórico ainda vazio ou inacessível.")
 
 st.markdown("<hr><center>Desenvolvido por: Thiago Messias Carvalho Soares & Roger Ramos Santana | PRODIN 2026</center>", unsafe_allow_html=True)
