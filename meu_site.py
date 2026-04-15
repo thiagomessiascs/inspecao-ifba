@@ -12,7 +12,9 @@ import os
 # 1. CONFIGURAÇÕES DA PÁGINA
 st.set_page_config(page_title="Sistema PRODIN - IFBA", layout="centered", page_icon="📋")
 
-# 🔗 CONFIGURAÇÕES DE IMAGEM (LOGO)
+# 🔗 LINK CORRIGIDO (ID: 1i2-Sd9853TrdgUGSo9QRX5sKD7kFmsbuqih9FlF-7F8)
+URL_PLANILHA = "https://docs.google.com/spreadsheets/d/1i2-Sd9853TrdgUGSo9QRX5sKD7kFmsbuqih9FlF-7F8/edit"
+NOME_ABA = "Sheet1" 
 URL_LOGO_IFBA = "https://raw.githubusercontent.com/thiagomessiascs/inspecao-ifba/main/logo_ifba_vertical.png"
 NOME_ARQUIVO_LOGO = "logo_ifba.png"
 
@@ -64,6 +66,9 @@ sugestoes = {
     }
 }
 
+lista_disciplinas = ["Escolha..."] + list(sugestoes.keys()) + ["Outras"]
+lista_modalidades = ["Serviços contínuos", "Serviços eventuais", "Obras ou reformas"]
+
 # 4. FUNÇÃO PDF
 def gerar_pdf(dados):
     pdf = FPDF()
@@ -72,7 +77,8 @@ def gerar_pdf(dados):
         if not os.path.exists(NOME_ARQUIVO_LOGO):
             r = requests.get(URL_LOGO_IFBA, timeout=5)
             if r.status_code == 200:
-                with open(NOME_ARQUIVO_LOGO, "wb") as f: f.write(r.content)
+                with open(NOME_ARQUIVO_LOGO, "wb") as f:
+                    f.write(r.content)
         pdf.image(NOME_ARQUIVO_LOGO, x=87, y=15, w=35)
     except: pass
         
@@ -90,13 +96,14 @@ def gerar_pdf(dados):
             
     if dados.get("Foto_Dados"):
         try:
-            img_io = io.BytesIO(base64.b64decode(dados["Foto_Dados"]))
+            img_byte = base64.b64decode(dados["Foto_Dados"])
+            img_io = io.BytesIO(img_byte)
             pdf.ln(5)
             pdf.image(img_io, x=50, w=110)
         except: pass
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
-# 5. CONEXÃO (LÊ TUDO DOS SECRETS)
+# 5. CONEXÃO
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 with st.sidebar:
@@ -107,7 +114,7 @@ with st.sidebar:
 
 if nav == "Nova Inspeção":
     st.header(f"📋 Nova Inspeção - {campus_sel}")
-    disc = st.selectbox("Disciplina Técnica", ["Escolha..."] + list(sugestoes.keys()))
+    disc = st.selectbox("Disciplina Técnica", lista_disciplinas)
     
     with st.form("form_inspecao", clear_on_submit=True):
         c1, c2 = st.columns([2, 1])
@@ -116,8 +123,7 @@ if nav == "Nova Inspeção":
         c3, c4 = st.columns([2, 1])
         ambiente = c3.text_input("Ambiente")
         sala = c4.text_input("Sala")
-        modalidade = st.selectbox("Modalidade", ["Serviços contínuos", "Serviços eventuais", "Obras ou reformas"])
-        
+        modalidade = st.selectbox("Modalidade", lista_modalidades)
         desc = st.text_area("Detalhamento:", value=sugestoes[disc]['Problemas'][0] if disc in sugestoes else "")
         sol = st.text_area("Encaminhamento:", value=sugestoes[disc]['Soluções'][0] if disc in sugestoes else "")
         foto = st.file_uploader("📸 Foto", type=['jpg', 'png', 'jpeg'])
@@ -132,20 +138,20 @@ if nav == "Nova Inspeção":
                 f_b64 = base64.b64encode(buf.getvalue()).decode()
             
             reg = {
-                "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, "Edificacao": edificacao,
-                "Disciplina": disc, "Ambiente": ambiente, "Sala": sala, "Modalidade": modalidade,
-                "Descricao": desc, "Solucoes": sol, "Engenheiro": eng_sel, "Foto_Dados": f_b64
+                "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, 
+                "Edificacao": edificacao, "Disciplina": disc, "Ambiente": ambiente, 
+                "Sala": sala, "Modalidade": modalidade, "Descricao": desc, 
+                "Solucoes": sol, "Engenheiro": eng_sel, "Foto_Dados": f_b64
             }
             
             try:
-                # Aqui está o segredo: deixamos o conn.read() e update() vazios para usar o Secret
-                df_atual = conn.read(ttl=0).dropna(how='all')
+                df_atual = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
                 df_novo = pd.concat([df_atual, pd.DataFrame([reg])], ignore_index=True)
-                conn.update(data=df_novo)
+                conn.update(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, data=df_novo)
                 st.success("✅ Salvo com sucesso!")
                 st.session_state['ultimo_relatorio'] = reg
             except Exception as e:
-                st.error(f"Erro de conexão: {e}")
+                st.error(f"Erro: {e}")
 
     if 'ultimo_relatorio' in st.session_state:
         st.download_button("📥 Baixar PDF", data=gerar_pdf(st.session_state['ultimo_relatorio']), file_name=f"Inspecao_{campus_sel}.pdf")
@@ -153,9 +159,9 @@ if nav == "Nova Inspeção":
 elif nav == "Histórico":
     st.header(f"📂 Histórico: {campus_sel}")
     try:
-        df = conn.read(ttl=0).dropna(how='all')
+        df = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
         st.dataframe(df[df['Campus'] == campus_sel].drop(columns=['Foto_Dados'], errors='ignore'))
     except:
-        st.warning("Nenhum dado encontrado.")
+        st.warning("Histórico indisponível.")
 
-st.markdown("<hr><center>PRODIN 2026</center>", unsafe_allow_html=True)
+st.markdown("<hr><center>Desenvolvido por: Thiago Messias Carvalho Soares & Roger Ramos Santana | PRODIN 2026</center>", unsafe_allow_html=True)
