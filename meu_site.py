@@ -17,40 +17,90 @@ NOME_ABA = "Sheet1"
 URL_LOGO_IFBA = "https://raw.githubusercontent.com/thiagomessiascs/inspecao-ifba/main/logo_ifba_vertical.png"
 NOME_ARQUIVO_LOGO = "logo_ifba.png"
 
-# --- DICIONÁRIO ESTRUTURADO (AMARRADO) ---
+# --- DICIONÁRIO AMPLIADO E HIERARQUIZADO ---
 sugestoes_v2 = {
     'Alvenaria': {
         'Fissuras de retração térmica': {
             'solucao': 'Tratamento com tela de poliéster e selante elastomérico',
-            'obs': 'Procedimento: Abrir a fissura em formato de "V", limpar, aplicar fundo preparador, preencher com selante e cobrir com tela de poliéster antes do acabamento.'
+            'obs': 'Procedimento: Abrir a fissura em "V", limpar, aplicar fundo preparador, preencher com selante PU e cobrir com tela de poliéster antes do acabamento.'
         },
         'Umidade por capilaridade (rodapé)': {
             'solucao': 'Impermeabilização polimérica de rodapé',
-            'obs': 'Procedimento: Remover o reboco afetado até 50cm acima da mancha, aplicar argamassa impermeabilizante em 3 demãos cruzadas e refazer o emboço com aditivo hidrófugo.'
+            'obs': 'Procedimento: Remover reboco até 50cm de altura, aplicar argamassa impermeabilizante estrutural (3 demãos) e refazer o reboco com aditivo hidrófugo.'
+        },
+        'Eflorescência (sais brancos)': {
+            'solucao': 'Limpeza ácida e hidrofugação',
+            'obs': 'Procedimento: Escovar a área seca, lavar com solução de ácido clorídrico diluído, enxaguar e, após secagem, aplicar hidrofugante à base de silano-siloxano.'
+        },
+        'Descolamento de revestimento cerâmico': {
+            'solucao': 'Substituição de peças com argamassa colante AC-III',
+            'obs': 'Procedimento: Remover peças soltas e som cavo, limpar o tardoz e o substrato, aplicar argamassa AC-III com técnica de dupla camada e rejuntar.'
         }
     },
     'Estrutura': {
         'Corrosão de armaduras (ferro exposto)': {
             'solucao': 'Escovamento, passivação e reparo com graute',
-            'obs': 'Procedimento: Delimitar a área, remover concreto degradado, limpar armadura com escova de aço, aplicar inibidor de corrosão e recompor seção com graute estrutural.'
+            'obs': 'Procedimento: Remover concreto degradado, limpar armadura com escova de aço até brilho metálico, aplicar inibidor de corrosão e recompor com graute estrutural.'
+        },
+        'Segregação do concreto (bicheiras)': {
+            'solucao': 'Preenchimento com graute de alta fluidez',
+            'obs': 'Procedimento: Remover partes soltas, lavar a cavidade, aplicar ponte de aderência e preencher com graute estrutural para garantir a seção da peça.'
+        },
+        'Carbonatação do concreto': {
+            'solucao': 'Pintura de proteção anticarbonatação',
+            'obs': 'Procedimento: Limpar a superfície e aplicar verniz ou tinta acrílica de alta gramatura para impedir a entrada de CO2 e reduzir a porosidade.'
         }
     },
     'Cobertura': {
         'Infiltração em rufos e contra-rufos': {
             'solucao': 'Vedação com PU 40 e manta aluminizada',
-            'obs': 'Procedimento: Limpar a superfície do rufo, remover vedações antigas ressecadas, aplicar cordão de PU 40 nas juntas e reforçar com fita aluminizada autocolante.'
+            'obs': 'Procedimento: Limpar o substrato, remover selantes antigos, aplicar cordão de PU 40 nas juntas e reforçar com fita aluminizada autocolante.'
+        },
+        'Obstrução de calhas e condutores': {
+            'solucao': 'Limpeza mecânica e revisão de caimentos',
+            'obs': 'Procedimento: Remover detritos e sedimentos, testar vazão com água e ajustar suportes se houver empoçamento.'
+        },
+        'Oxidação em estrutura metálica': {
+            'solucao': 'Tratamento anticorrosivo e pintura esmalte',
+            'obs': 'Procedimento: Lixamento mecânico (ST3), aplicação de fundo convertedor de ferrugem e acabamento com tinta esmalte sintético ou epóxi.'
         }
     },
     'Hidráulica': {
-        'Vazamento aparente em conexões': {
-            'solucao': 'Substituição de conexões e vedação',
-            'obs': 'Procedimento: Fechar o registro, cortar o trecho avariado, instalar novas conexões com adesivo plástico ou fita veda-rosca e testar estanqueidade.'
+        'Vazamento em conexões de PVC': {
+            'solucao': 'Substituição de trecho e vedação térmica',
+            'obs': 'Procedimento: Cortar o trecho avariado, instalar luvas de correr ou conexões novas com adesivo plástico apropriado após limpeza com solução limpadora.'
+        },
+        'Baixa pressão nos pontos de consumo': {
+            'solucao': 'Limpeza de crivos e verificação de ventilação',
+            'obs': 'Procedimento: Limpar aeradores e crivos de chuveiros; verificar se o tubo de ventilação da coluna está obstruído ou se há ar na rede.'
+        },
+        'Retorno de odor em ralos': {
+            'solucao': 'Substituição de desconector (sifão)',
+            'obs': 'Procedimento: Verificar o fecho hídrico do ralo sifonado; se inexistente, substituir por ralo com caixa sifonada de 100mm ou 150mm.'
         }
     },
     'Elétrica': {
-        'Fios expostos ou sem isolamento': {
-            'solucao': 'Acondicionamento em eletrodutos e isolamento técnico',
-            'obs': 'Procedimento: Desligar o circuito, revisar as emendas com fita isolante de alta fusão e organizar a fiação dentro de canaletas ou eletrodutos normatizados.'
+        'Superaquecimento de disjuntores': {
+            'solucao': 'Reaperto de conexões e redimensionamento',
+            'obs': 'Procedimento: Verificar torque nos terminais; caso o aquecimento persista, medir a corrente e substituir o disjuntor por um de curva adequada à carga.'
+        },
+        'Ausência de dispositivo DR (Segurança)': {
+            'solucao': 'Instalação de interruptor diferencial residual',
+            'obs': 'Procedimento: Adequar o quadro de distribuição para instalação do DR de 30mA, garantindo proteção contra choques elétricos conforme NBR 5410.'
+        },
+        'Fiação antiga/ressecada': {
+            'solucao': 'Recabeamento total do circuito',
+            'obs': 'Procedimento: Substituir condutores antigos por cabos flexíveis antichama (750V) com bitolas calculadas para a demanda atual do setor.'
+        }
+    },
+    'Impermeabilização': {
+        'Infiltração em laje exposta': {
+            'solucao': 'Aplicação de manta asfáltica ou membrana PU',
+            'obs': 'Procedimento: Regularizar o piso com caimento de 1%, aplicar primer e fundir a manta asfáltica com maçarico, respeitando sobreposições de 10cm.'
+        },
+        'Falha em junta de dilatação': {
+            'solucao': 'Substituição de mastique e delimitador',
+            'obs': 'Procedimento: Remover o selante antigo, inserir corpo de apoio (cordão de polietileno) e aplicar novo mastique de poliuretano de alto desempenho.'
         }
     }
 }
@@ -116,7 +166,7 @@ def gerar_pdf_completo(dados):
     pdf.adicionar_secao("3. CONCLUSÃO", conclusao_txt)
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
-# 2. SISTEMA DE ACESSO
+# 2. ACESSO
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
@@ -130,7 +180,7 @@ if not st.session_state['autenticado']:
         else: st.error("Senha incorreta!")
     st.stop()
 
-# 3. MAPEAMENTO DE CAMPI
+# 3. MAPEAMENTO
 dados_prodin = {
     "Eng. Thiago": {"campi": ["Euclides da Cunha", "Irecê", "Jacobina", "Seabra", "Monte Santo"]},
     "Eng. Roger": {"campi": ["Eunápolis", "Feira de Santana", "Paulo Afonso", "Porto Seguro", "Santo Amaro", "Itatim"]},
@@ -150,7 +200,6 @@ with st.sidebar:
 
 if nav == "Nova Inspeção":
     st.header(f"📋 Nova Inspeção - {campus_sel}")
-    
     disc_escolhida = st.selectbox("Disciplina Técnica", ["Escolha..."] + list(sugestoes_v2.keys()))
 
     with st.form("form_inspecao", clear_on_submit=True):
@@ -162,11 +211,10 @@ if nav == "Nova Inspeção":
         data_ins = c3.date_input("Data", datetime.now())
         modalidade = c4.selectbox("Modalidade", ["Serviços contínuos", "Serviços eventuais", "Obras ou reformas"])
 
-        # LÓGICA DE AMARRAÇÃO
+        # LÓGICA DE AMARRAÇÃO AMPLIADA
         lista_patologias = list(sugestoes_v2[disc_escolhida].keys()) if disc_escolhida in sugestoes_v2 else [""]
         patologia_sel = st.selectbox("Patologia Identificada", lista_patologias)
         
-        # Busca automática no dicionário v2
         dados_patologia = sugestoes_v2.get(disc_escolhida, {}).get(patologia_sel, {"solucao": "", "obs": ""})
         
         sol_automatica = st.text_input("Solução Técnica (Automática):", value=dados_patologia['solucao'])
