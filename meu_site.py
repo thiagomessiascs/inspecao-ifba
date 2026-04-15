@@ -45,7 +45,6 @@ sugestoes = {
     }
 }
 
-# --- CLASSE CUSTOMIZADA PARA O PDF ---
 class RelatorioIFBA(FPDF):
     def header(self):
         try:
@@ -133,7 +132,6 @@ dados_prodin = {
     "Eng. Fenelon": {"campi": ["Camaçari", "Lauro de Freitas", "Santo Antônio de Jesus", "Simões Filho", "Valença"]}
 }
 
-# 5. INTERFACE PRINCIPAL
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 with st.sidebar:
@@ -145,34 +143,38 @@ with st.sidebar:
 if nav == "Nova Inspeção":
     st.header(f"📋 Nova Inspeção - {campus_sel}")
     
-    # Seleção da Disciplina para carregar sugestões
     disc_escolhida = st.selectbox("Disciplina Técnica", ["Escolha..."] + list(sugestoes.keys()))
 
     with st.form("form_inspecao", clear_on_submit=True):
-        c1, c2 = st.columns([2, 1])
+        c1, c2 = st.columns([1, 1])
         
-        # --- BOTÃO AMBIENTES / EDIFICAÇÃO REINSERIDO ---
-        edificacao = c1.selectbox("Ambiente / Edificação", [
+        # CAMPO EDIFICAÇÃO
+        edificacao = c1.selectbox("Edificação", [
             "Pavilhão de aulas", "Pavilhão acadêmico", "Pavilhão administrativo", 
             "Ginásio", "Refeitório", "Muro", "Estacionamento", 
             "Usina solar", "Usina de biodiesel", "Guarita"
         ])
         
-        data_ins = c2.date_input("Data", datetime.now())
+        # --- NOVO CAMPO AMBIENTE (INDEPENDENTE) ---
+        ambiente_sel = c2.selectbox("Ambiente", [
+            "Sanitário Masculino", "Sanitário Masculino PDC", "Sanitário Feminino", 
+            "Sanitário Feminino PDC", "Sala de aula", "Sala ADM", "Depósito", 
+            "Laboratório", "Auditório", "Área externa", "Circulação", 
+            "Pátio", "Corredor", "Passeio"
+        ])
         
-        c3, c4 = st.columns([2, 1])
-        local_especifico = c3.text_input("Local Específico / Sala")
+        c3, c4 = st.columns([1, 1])
+        data_ins = c3.date_input("Data", datetime.now())
         modalidade = c4.selectbox("Modalidade", ["Serviços contínuos", "Serviços eventuais", "Obras ou reformas"])
 
-        # Sugestões técnicas
         prob_sugestao = sugestoes[disc_escolhida]['Problemas'] if disc_escolhida in sugestoes else [""]
         sol_sugestao = sugestoes[disc_escolhida]['Soluções'] if disc_escolhida in sugestoes else [""]
         
         desc_sel = st.selectbox("Patologia Identificada (Sugestão)", prob_sugestao)
-        desc_final = st.text_area("Detalhamento Final (Pode editar):", value=desc_sel)
+        desc_final = st.text_area("Detalhamento Final:", value=desc_sel)
         
         sol_sel = st.selectbox("Encaminhamento Técnico (Sugestão)", sol_sugestao)
-        sol_final = st.text_area("Encaminhamento Final (Pode editar):", value=sol_sel)
+        sol_final = st.text_area("Encaminhamento Final:", value=sol_sel)
         
         foto = st.file_uploader("📸 Foto da Patologia", type=['jpg', 'png', 'jpeg'])
 
@@ -187,8 +189,8 @@ if nav == "Nova Inspeção":
             
             reg = {
                 "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, 
-                "Edificacao": edificacao, "Disciplina": disc_escolhida, "Ambiente": local_especifico, 
-                "Sala": "Ver Campo Local", "Modalidade": modalidade, "Descricao": desc_final, 
+                "Edificacao": edificacao, "Disciplina": disc_escolhida, "Ambiente": ambiente_sel, 
+                "Sala": "N/A", "Modalidade": modalidade, "Descricao": desc_final, 
                 "Solucoes": sol_final, "Engenheiro": eng_sel, "Foto_Dados": f_b64
             }
             
@@ -212,6 +214,6 @@ elif nav == "Histórico":
         df = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
         st.dataframe(df[df['Campus'] == campus_sel].drop(columns=['Foto_Dados'], errors='ignore'))
     except:
-        st.warning("Histórico indisponível no momento.")
+        st.warning("Histórico indisponível.")
 
 st.markdown("<hr><center>Desenvolvido por: Thiago Messias Carvalho Soares & Roger Ramos Santana | PRODIN 2026</center>", unsafe_allow_html=True)
