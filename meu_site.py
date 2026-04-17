@@ -17,6 +17,15 @@ NOME_ABA = "Sheet1"
 URL_LOGO_IFBA = "https://raw.githubusercontent.com/thiagomessiascs/inspecao-ifba/main/logo_ifba_vertical.png"
 NOME_ARQUIVO_LOGO = "logo_ifba.png"
 
+# --- DICIONÁRIO GUT ---
+niveis_gut = {
+    1: "1 - Mínima/Inexistente",
+    2: "2 - Pequena",
+    3: "3 - Média",
+    4: "4 - Grande",
+    5: "5 - Gravíssima/Imediata"
+}
+
 # --- DICIONÁRIO TÉCNICO COMPLETO E DETALHADO ---
 sugestoes_v2 = {
     'Alvenaria': {
@@ -165,20 +174,21 @@ class RelatorioIFBA(FPDF):
         self.ln(5)
 
     def adicionar_tabela_resumo(self, df):
-        self.set_font('Arial', 'B', 10)
+        self.set_font('Arial', 'B', 9)
         self.set_fill_color(200, 200, 200)
-        # Larguras das colunas
-        w = [25, 40, 40, 85]
-        cols = ["Data", "Edificação", "Disciplina", "Patologia"]
+        # Ajuste de larguras para incluir GUT
+        w = [22, 35, 30, 80, 23]
+        cols = ["Data", "Edificação", "Disciplina", "Patologia", "GUT"]
         for i, nome in enumerate(cols):
             self.cell(w[i], 10, nome, 1, 0, 'C', True)
         self.ln()
-        self.set_font('Arial', '', 9)
+        self.set_font('Arial', '', 8)
         for _, row in df.iterrows():
             self.cell(w[0], 8, str(row['Data']), 1)
-            self.cell(w[1], 8, str(row['Edificacao'])[:20], 1)
+            self.cell(w[1], 8, str(row['Edificacao'])[:18], 1)
             self.cell(w[2], 8, str(row['Disciplina']), 1)
-            self.cell(w[3], 8, str(row['Descricao'])[:50], 1)
+            self.cell(w[3], 8, str(row['Descricao'])[:45], 1)
+            self.cell(w[4], 8, str(row.get('GUT_Score', 'N/A')), 1, 0, 'C')
             self.ln()
 
 def gerar_pdf_completo(dados):
@@ -193,7 +203,7 @@ def gerar_pdf_completo(dados):
     for k, v in dados.items():
         if k not in ["Foto_Dados", "Campus", "Engenheiro"]:
             pdf.set_font('Arial', 'B', 10)
-            pdf.cell(40, 8, f"{k}:", 1)
+            pdf.cell(45, 8, f"{k}:", 1)
             pdf.set_font('Arial', '', 10)
             pdf.multi_cell(0, 8, f" {str(v)}", 1)
     if dados.get("Foto_Dados"):
@@ -203,7 +213,8 @@ def gerar_pdf_completo(dados):
             pdf.ln(5)
             pdf.image(img_io, x=45, w=120)
         except: pass
-    conclusao_txt = (f"Com base na análise da disciplina {dados['Disciplina']}, recomenda-se seguir os encaminhamentos propostos.")
+    conclusao_txt = (f"Com base na análise da disciplina {dados['Disciplina']}, recomenda-se seguir os encaminhamentos propostos. "
+                     f"A prioridade técnica calculada pela Matriz GUT foi de {dados.get('GUT_Score', 'N/A')} pontos.")
     pdf.adicionar_secao("3. CONCLUSÃO", conclusao_txt)
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
@@ -301,7 +312,6 @@ with st.sidebar:
     campus_sel = st.selectbox("Campus", dados_prodin[eng_sel]["campi"])
     nav = st.radio("Ir para:", ["Nova Inspeção", "Histórico", "Dashboard"])
     
-    # --- BOTÃO GERAR PDF CONSOLIDADO (SOLICITADO) ---
     st.markdown("---")
     if st.button("📄 Gerar PDF Consolidado", use_container_width=True):
         try:
@@ -333,33 +343,25 @@ if nav == "Nova Inspeção":
         data_ins = c3.date_input("Data", datetime.now())
         modalidade = c4.selectbox("Modalidade", ["Serviços contínuos", "Serviços eventuais", "Obras ou reformas"])
 
-        lista_patologias = list(sugestoes_v2[disc_escolhida].keys()) if disc_escolhida in sugestoes_v2 else []
+        lista_patologias = list(sugestoes_v2[disc_escolhida].keys()) if disc_escolhida in sugestoes_v2 else [""]
+        patologia_sel = st.selectbox("Patologia Identificada", lista_patologias)
+        
+        # --- SEÇÃO MATRIZ GUT ---
+        st.markdown("**Priorização (Matriz GUT)**")
+        cg1, cg2, cg3 = st.columns(3)
+        g_val = cg1.selectbox("Gravidade", list(niveis_gut.keys()), format_func=lambda x: niveis_gut[x])
+        u_val = cg2.selectbox("Urgência", list(niveis_gut.keys()), format_func=lambda x: niveis_gut[x])
+        t_val = cg3.selectbox("Tendência", list(niveis_gut.keys()), format_func=lambda x: niveis_gut[x])
+        gut_score = g_val * u_val * t_val
+        st.info(f"Score GUT Calculado: {gut_score} pontos")
 
-# Criamos as colunas: 3 partes para a Patologia e 1 para cada letra da GUT
-        c_pat, c_g, c_u, c_t = st.columns([3, 1, 1, 1])
+        dados_patologia = sugestoes_v2.get(disc_escolhida, {}).get(patologia_sel, {"solucao": "", "obs": ""})
+        sol_automatica = st.text_input("Solução Técnica (Automática):", value=dados_patologia['solucao'])
+        obs_final = st.text_area("Observações (Procedimento de Execução):", value=dados_patologia['obs'])
+        
+        foto = st.file_uploader("📸 Foto da Patologia", type=['jpg', 'png', 'jpeg'])
 
-with c_pat:
-    patologia_sel = st.selectbox("Patologia Identificada", lista_patologias)
-
-with c_g:
-        g = st.selectbox("G", [1, 2, 3, 4, 5], help="Gravidade")
-
-with c_u:
-        u = st.selectbox("U", [1, 2, 3, 4, 5], help="Urgência")
-
-with c_t:
-        t = st.selectbox("T", [1, 2, 3, 4, 5], help="Tendência")
-
-# Cálculo do Score (fica guardado na memória para salvar depois)
-score_gut = g * u * t
-    
-dados_patologia = sugestoes_v2.get(disc_escolhida, {}).get(patologia_sel, {"solucao": "", "obs": ""})
-sol_automatica = st.text_input("Solução Técnica (Automática):", value=dados_patologia['solucao'])
-obs_final = st.text_area("Observações (Procedimento de Execução):", value=dados_patologia['obs'])
-
-foto = st.file_uploader("📸 Foto da Patologia", type=['jpg', 'png', 'jpeg'])
-
-    if st.form_submit_button("✅ Salvar Inspeção"):
+        if st.form_submit_button("✅ Salvar Inspeção"):
             f_b64 = ""
             if foto:
                 img = Image.open(foto).convert("RGB")
@@ -367,14 +369,15 @@ foto = st.file_uploader("📸 Foto da Patologia", type=['jpg', 'png', 'jpeg'])
                 buf = io.BytesIO()
                 img.save(buf, format="JPEG", quality=75)
                 f_b64 = base64.b64encode(buf.getvalue()).decode()
-        
+            
             reg = {
                 "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, 
                 "Edificacao": edificacao, "Disciplina": disc_escolhida, "Ambiente": ambiente_sel, 
                 "Sala": "N/A", "Modalidade": modalidade, "Descricao": patologia_sel, 
-                "Solucoes": f"{sol_automatica} | {obs_final}", "Engenheiro": eng_sel, "Foto_Dados": f_b64
+                "Solucoes": f"{sol_automatica} | {obs_final}", "Engenheiro": eng_sel, 
+                "Foto_Dados": f_b64, "GUT_Score": gut_score
             }
-        
+            
             try:
                 df_atual = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
                 df_novo = pd.concat([df_atual, pd.DataFrame([reg])], ignore_index=True)
@@ -383,7 +386,7 @@ foto = st.file_uploader("📸 Foto da Patologia", type=['jpg', 'png', 'jpeg'])
                 st.session_state['ultimo_relatorio'] = reg
             except Exception as e: st.error(f"Erro: {e}")
 
-if 'ultimo_relatorio' in st.session_state:
+    if 'ultimo_relatorio' in st.session_state:
         st.download_button("📥 Baixar PDF do Relatório", data=gerar_pdf_completo(st.session_state['ultimo_relatorio']), file_name=f"Inspecao_{campus_sel}.pdf")
 
 elif nav == "Histórico":
@@ -394,7 +397,7 @@ elif nav == "Histórico":
         
         if not df_filtrado.empty:
             indices_disponiveis = df_filtrado.index.tolist()
-            idx_para_editar = st.selectbox("Selecione o registro para Editar ou Visualizar:", indices_disponiveis, format_func=lambda x: f"ID {x} - {df_filtrado.loc[x, 'Data']} - {df_filtrado.loc[x, 'Descricao']}")
+            idx_para_editar = st.selectbox("Selecione o registro para Editar ou Visualizar:", indices_disponiveis, format_func=lambda x: f"ID {x} - {df_filtrado.loc[x, 'Data']} - GUT: {df_filtrado.loc[x].get('GUT_Score', '0')}")
             
             with st.expander("📝 Editar Registro Selecionado", expanded=True):
                 disc_atual = df_filtrado.loc[idx_para_editar, 'Disciplina']
@@ -454,12 +457,13 @@ elif nav == "Dashboard":
                 st.bar_chart(contagem_disc)
             
             with col_d2:
-                st.write("**Patologias por Edificação**")
-                contagem_edif = df_dash['Edificacao'].value_counts()
-                st.bar_chart(contagem_edif)
+                st.write("**Média de Gravidade (GUT)**")
+                if 'GUT_Score' in df_dash.columns:
+                    gut_med = df_dash.groupby('Disciplina')['GUT_Score'].mean()
+                    st.line_chart(gut_med)
 
-            st.write("**Resumo por Patologia**")
-            resumo_pat = df_dash.groupby(['Disciplina', 'Descricao']).size().reset_index(name='Quantidade')
+            st.write("**Resumo por Patologia e Prioridade**")
+            resumo_pat = df_dash[['Disciplina', 'Descricao', 'GUT_Score']].sort_values(by='GUT_Score', ascending=False)
             st.table(resumo_pat)
         else:
             st.info("Ainda não há dados suficientes para gerar o Dashboard deste campus.")
