@@ -142,11 +142,11 @@ class RelatorioIFBA(FPDF):
         self.set_font('Arial', 'I', 8)
         self.cell(0, 10, f'Página {self.page_no()}', 0, 0, 'C')
 
-    def criar_capa(self, campus, engenheiro):
+    def criar_capa(self, campus, engenheiro, subtitulo="RELATÓRIO DE VISTORIA TÉCNICA"):
         self.add_page()
         self.set_font('Arial', 'B', 20)
         self.ln(40)
-        self.cell(0, 20, "RELATÓRIO DE VISTORIA TÉCNICA", ln=True, align='C')
+        self.cell(0, 20, subtitulo, ln=True, align='C')
         self.set_font('Arial', '', 14)
         self.cell(0, 10, f"CAMPUS: {campus.upper()}", ln=True, align='C')
         self.ln(60)
@@ -163,6 +163,23 @@ class RelatorioIFBA(FPDF):
         self.set_font('Arial', '', 11)
         self.multi_cell(0, 8, conteudo)
         self.ln(5)
+
+    def adicionar_tabela_resumo(self, df):
+        self.set_font('Arial', 'B', 10)
+        self.set_fill_color(200, 200, 200)
+        # Larguras das colunas
+        w = [25, 40, 40, 85]
+        cols = ["Data", "Edificação", "Disciplina", "Patologia"]
+        for i, nome in enumerate(cols):
+            self.cell(w[i], 10, nome, 1, 0, 'C', True)
+        self.ln()
+        self.set_font('Arial', '', 9)
+        for _, row in df.iterrows():
+            self.cell(w[0], 8, str(row['Data']), 1)
+            self.cell(w[1], 8, str(row['Edificacao'])[:20], 1)
+            self.cell(w[2], 8, str(row['Disciplina']), 1)
+            self.cell(w[3], 8, str(row['Descricao'])[:50], 1)
+            self.ln()
 
 def gerar_pdf_completo(dados):
     pdf = RelatorioIFBA()
@@ -188,6 +205,46 @@ def gerar_pdf_completo(dados):
         except: pass
     conclusao_txt = (f"Com base na análise da disciplina {dados['Disciplina']}, recomenda-se seguir os encaminhamentos propostos.")
     pdf.adicionar_secao("3. CONCLUSÃO", conclusao_txt)
+    return pdf.output(dest='S').encode('latin-1', 'replace')
+
+def gerar_pdf_consolidado(df, campus, engenheiro):
+    pdf = RelatorioIFBA()
+    pdf.criar_capa(campus, engenheiro, subtitulo="RELATÓRIO CONSOLIDADO (HISTÓRICO E DASHBOARD)")
+    
+    # Seção Histórico
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(0, 12, "1. HISTÓRICO DE OCORRÊNCIAS", ln=True)
+    pdf.ln(5)
+    pdf.adicionar_tabela_resumo(df)
+    
+    # Seção Dashboard
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(0, 12, "2. ANÁLISE QUANTITATIVA (DASHBOARD)", ln=True)
+    pdf.ln(10)
+    
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 10, f"Total de inspeções registradas: {len(df)}", ln=True)
+    pdf.ln(5)
+    
+    # Resumo por Disciplina
+    pdf.set_font('Arial', 'B', 11)
+    pdf.cell(0, 10, "Distribuição por Disciplina:", ln=True)
+    pdf.set_font('Arial', '', 10)
+    cont_disc = df['Disciplina'].value_counts()
+    for disc, qtd in cont_disc.items():
+        pdf.cell(0, 8, f"- {disc}: {qtd} ocorrência(s)", ln=True)
+    
+    pdf.ln(5)
+    # Resumo por Edificação
+    pdf.set_font('Arial', 'B', 11)
+    pdf.cell(0, 10, "Distribuição por Edificação:", ln=True)
+    pdf.set_font('Arial', '', 10)
+    cont_edif = df['Edificacao'].value_counts()
+    for edif, qtd in cont_edif.items():
+        pdf.cell(0, 8, f"- {edif}: {qtd} ocorrência(s)", ln=True)
+
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
 # 2. SISTEMA DE ACESSO
@@ -244,7 +301,21 @@ with st.sidebar:
     campus_sel = st.selectbox("Campus", dados_prodin[eng_sel]["campi"])
     nav = st.radio("Ir para:", ["Nova Inspeção", "Histórico", "Dashboard"])
     
-    st.markdown("<br>" * 5, unsafe_allow_html=True)
+    # --- BOTÃO GERAR PDF CONSOLIDADO (SOLICITADO) ---
+    st.markdown("---")
+    if st.button("📄 Gerar PDF Consolidado", use_container_width=True):
+        try:
+            df_full = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
+            df_campus = df_full[df_full['Campus'] == campus_sel]
+            if not df_campus.empty:
+                pdf_consolidado = gerar_pdf_consolidado(df_campus, campus_sel, eng_sel)
+                st.download_button("📥 Baixar Relatório Geral", data=pdf_consolidado, file_name=f"Relatorio_Geral_{campus_sel}.pdf", use_container_width=True)
+            else:
+                st.warning("Não há dados para gerar o PDF deste campus.")
+        except Exception as e:
+            st.error(f"Erro ao gerar PDF: {e}")
+
+    st.markdown("<br>" * 2, unsafe_allow_html=True)
     if st.button("🚪 Sair do Sistema", use_container_width=True):
         st.session_state['autenticado'] = False
         st.rerun()
@@ -309,19 +380,16 @@ elif nav == "Histórico":
             idx_para_editar = st.selectbox("Selecione o registro para Editar ou Visualizar:", indices_disponiveis, format_func=lambda x: f"ID {x} - {df_filtrado.loc[x, 'Data']} - {df_filtrado.loc[x, 'Descricao']}")
             
             with st.expander("📝 Editar Registro Selecionado", expanded=True):
-                # 1. Seleção de Disciplina para manter o dicionário ativo na edição
                 disc_atual = df_filtrado.loc[idx_para_editar, 'Disciplina']
                 lista_discs = list(sugestoes_v2.keys())
                 idx_disc_default = lista_discs.index(disc_atual) if disc_atual in lista_discs else 0
                 edit_disciplina = st.selectbox("Disciplina Técnica", lista_discs, index=idx_disc_default, key="edit_disc")
 
-                # 2. Seleção de Patologia (Dropdown baseado na disciplina)
                 lista_pats_edit = list(sugestoes_v2[edit_disciplina].keys())
                 pat_atual = df_filtrado.loc[idx_para_editar, 'Descricao']
                 idx_pat_default = lista_pats_edit.index(pat_atual) if pat_atual in lista_pats_edit else 0
                 edit_desc = st.selectbox("Patologia Identificada", lista_pats_edit, index=idx_pat_default)
 
-                # 3. Carregamento automático dos dados do dicionário
                 dados_sugestao = sugestoes_v2[edit_disciplina][edit_desc]
                 
                 c_e1, c_e2 = st.columns(2)
@@ -353,7 +421,6 @@ elif nav == "Histórico":
     except Exception as e: 
         st.warning(f"Histórico indisponível. Detalhe: {e}")
 
-# --- NOVA SEÇÃO: DASHBOARD ---
 elif nav == "Dashboard":
     st.header(f"📊 Dashboard de Patologias - {campus_sel}")
     try:
@@ -364,20 +431,16 @@ elif nav == "Dashboard":
             st.subheader(f"Total de ocorrências: {len(df_dash)}")
             
             col_d1, col_d2 = st.columns(2)
-            
-            # Gráfico 1: Por Disciplina
             with col_d1:
                 st.write("**Patologias por Disciplina**")
                 contagem_disc = df_dash['Disciplina'].value_counts()
                 st.bar_chart(contagem_disc)
             
-            # Gráfico 2: Por Edificação
             with col_d2:
                 st.write("**Patologias por Edificação**")
                 contagem_edif = df_dash['Edificacao'].value_counts()
                 st.bar_chart(contagem_edif)
 
-            # Tabela Resumo
             st.write("**Resumo por Patologia**")
             resumo_pat = df_dash.groupby(['Disciplina', 'Descricao']).size().reset_index(name='Quantidade')
             st.table(resumo_pat)
