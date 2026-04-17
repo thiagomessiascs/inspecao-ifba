@@ -301,7 +301,7 @@ with st.sidebar:
     campus_sel = st.selectbox("Campus", dados_prodin[eng_sel]["campi"])
     nav = st.radio("Ir para:", ["Nova Inspeção", "Histórico", "Dashboard"])
     
-    # --- BOTÃO GERAR PDF CONSOLIDADO (MANTIDO) ---
+    # --- BOTÃO GERAR PDF CONSOLIDADO (SOLICITADO) ---
     st.markdown("---")
     if st.button("📄 Gerar PDF Consolidado", use_container_width=True):
         try:
@@ -336,15 +336,6 @@ if nav == "Nova Inspeção":
         lista_patologias = list(sugestoes_v2[disc_escolhida].keys()) if disc_escolhida in sugestoes_v2 else [""]
         patologia_sel = st.selectbox("Patologia Identificada", lista_patologias)
         
-        # --- NOVO: MATRIZ GUT ---
-        st.markdown("#### Priorização (Matriz GUT)")
-        cg, cu, ct = st.columns(3)
-        g_val = cg.slider("Gravidade (1-5)", 1, 5, 3)
-        u_val = cu.slider("Urgência (1-5)", 1, 5, 3)
-        t_val = ct.slider("Tendência (1-5)", 1, 5, 3)
-        gut_total = g_val * u_val * t_val
-        st.write(f"Prioridade GUT: **{gut_total}**")
-
         dados_patologia = sugestoes_v2.get(disc_escolhida, {}).get(patologia_sel, {"solucao": "", "obs": ""})
         sol_automatica = st.text_input("Solução Técnica (Automática):", value=dados_patologia['solucao'])
         obs_final = st.text_area("Observações (Procedimento de Execução):", value=dados_patologia['obs'])
@@ -364,9 +355,7 @@ if nav == "Nova Inspeção":
                 "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, 
                 "Edificacao": edificacao, "Disciplina": disc_escolhida, "Ambiente": ambiente_sel, 
                 "Sala": "N/A", "Modalidade": modalidade, "Descricao": patologia_sel, 
-                "Solucoes": f"{sol_automatica} | {obs_final}", 
-                "GUT": gut_total, # Incluindo GUT no registro
-                "Engenheiro": eng_sel, "Foto_Dados": f_b64
+                "Solucoes": f"{sol_automatica} | {obs_final}", "Engenheiro": eng_sel, "Foto_Dados": f_b64
             }
             
             try:
@@ -451,11 +440,6 @@ elif nav == "Dashboard":
                 st.write("**Patologias por Edificação**")
                 contagem_edif = df_dash['Edificacao'].value_counts()
                 st.bar_chart(contagem_edif)
-
-            # Dashboard GUT
-            if 'GUT' in df_dash.columns:
-                st.write("**Análise de Prioridade (GUT)**")
-                st.line_chart(df_dash['GUT'])
 
             st.write("**Resumo por Patologia**")
             resumo_pat = df_dash.groupby(['Disciplina', 'Descricao']).size().reset_index(name='Quantidade')
