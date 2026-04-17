@@ -353,11 +353,11 @@ with c_t:
 # Cálculo do Score (fica guardado na memória para salvar depois)
 score_gut = g * u * t
     
-        dados_patologia = sugestoes_v2.get(disc_escolhida, {}).get(patologia_sel, {"solucao": "", "obs": ""})
-        sol_automatica = st.text_input("Solução Técnica (Automática):", value=dados_patologia['solucao'])
-        obs_final = st.text_area("Observações (Procedimento de Execução):", value=dados_patologia['obs'])
-    
-        foto = st.file_uploader("📸 Foto da Patologia", type=['jpg', 'png', 'jpeg'])
+dados_patologia = sugestoes_v2.get(disc_escolhida, {}).get(patologia_sel, {"solucao": "", "obs": ""})
+sol_automatica = st.text_input("Solução Técnica (Automática):", value=dados_patologia['solucao'])
+obs_final = st.text_area("Observações (Procedimento de Execução):", value=dados_patologia['obs'])
+
+foto = st.file_uploader("📸 Foto da Patologia", type=['jpg', 'png', 'jpeg'])
 
     if st.form_submit_button("✅ Salvar Inspeção"):
             f_b64 = ""
