@@ -242,7 +242,7 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     
     campus_sel = st.selectbox("Campus", dados_prodin[eng_sel]["campi"])
-    nav = st.radio("Ir para:", ["Nova Inspeção", "Histórico"])
+    nav = st.radio("Ir para:", ["Nova Inspeção", "Histórico", "Dashboard"])
     
     st.markdown("<br>" * 5, unsafe_allow_html=True)
     if st.button("🚪 Sair do Sistema", use_container_width=True):
@@ -352,5 +352,39 @@ elif nav == "Histórico":
             
     except Exception as e: 
         st.warning(f"Histórico indisponível. Detalhe: {e}")
+
+# --- NOVA SEÇÃO: DASHBOARD ---
+elif nav == "Dashboard":
+    st.header(f"📊 Dashboard de Patologias - {campus_sel}")
+    try:
+        df = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
+        df_dash = df[df['Campus'] == campus_sel].copy()
+
+        if not df_dash.empty:
+            st.subheader(f"Total de ocorrências: {len(df_dash)}")
+            
+            col_d1, col_d2 = st.columns(2)
+            
+            # Gráfico 1: Por Disciplina
+            with col_d1:
+                st.write("**Patologias por Disciplina**")
+                contagem_disc = df_dash['Disciplina'].value_counts()
+                st.bar_chart(contagem_disc)
+            
+            # Gráfico 2: Por Edificação
+            with col_d2:
+                st.write("**Patologias por Edificação**")
+                contagem_edif = df_dash['Edificacao'].value_counts()
+                st.bar_chart(contagem_edif)
+
+            # Tabela Resumo
+            st.write("**Resumo por Patologia**")
+            resumo_pat = df_dash.groupby(['Disciplina', 'Descricao']).size().reset_index(name='Quantidade')
+            st.table(resumo_pat)
+        else:
+            st.info("Ainda não há dados suficientes para gerar o Dashboard deste campus.")
+            
+    except Exception as e:
+        st.error(f"Erro ao carregar Dashboard: {e}")
 
 st.markdown("<hr><center>Desenvolvido por: Thiago Messias Carvalho Soares & Roger Ramos Santana | PRODIN 2026</center>", unsafe_allow_html=True)
