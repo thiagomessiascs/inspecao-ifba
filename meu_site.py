@@ -359,29 +359,29 @@ obs_final = st.text_area("Observações (Procedimento de Execução):", value=da
 
 foto = st.file_uploader("📸 Foto da Patologia", type=['jpg', 'png', 'jpeg'])
 
-if st.form_submit_button("✅ Salvar Inspeção"):
-        f_b64 = ""
-        if foto:
-            img = Image.open(foto).convert("RGB")
-            img.thumbnail((600, 600))
-            buf = io.BytesIO()
-            img.save(buf, format="JPEG", quality=75)
-            f_b64 = base64.b64encode(buf.getvalue()).decode()
+    if st.form_submit_button("✅ Salvar Inspeção"):
+            f_b64 = ""
+            if foto:
+                img = Image.open(foto).convert("RGB")
+                img.thumbnail((600, 600))
+                buf = io.BytesIO()
+                img.save(buf, format="JPEG", quality=75)
+                f_b64 = base64.b64encode(buf.getvalue()).decode()
         
-        reg = {
-            "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, 
-            "Edificacao": edificacao, "Disciplina": disc_escolhida, "Ambiente": ambiente_sel, 
-            "Sala": "N/A", "Modalidade": modalidade, "Descricao": patologia_sel, 
-            "Solucoes": f"{sol_automatica} | {obs_final}", "Engenheiro": eng_sel, "Foto_Dados": f_b64
-        }
+            reg = {
+                "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, 
+                "Edificacao": edificacao, "Disciplina": disc_escolhida, "Ambiente": ambiente_sel, 
+                "Sala": "N/A", "Modalidade": modalidade, "Descricao": patologia_sel, 
+                "Solucoes": f"{sol_automatica} | {obs_final}", "Engenheiro": eng_sel, "Foto_Dados": f_b64
+            }
         
-        try:
-            df_atual = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
-            df_novo = pd.concat([df_atual, pd.DataFrame([reg])], ignore_index=True)
-            conn.update(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, data=df_novo)
-            st.success("✅ Salvo com sucesso!")
-            st.session_state['ultimo_relatorio'] = reg
-        except Exception as e: st.error(f"Erro: {e}")
+            try:
+                df_atual = conn.read(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, ttl=0)
+                df_novo = pd.concat([df_atual, pd.DataFrame([reg])], ignore_index=True)
+                conn.update(spreadsheet=URL_PLANILHA, worksheet=NOME_ABA, data=df_novo)
+                st.success("✅ Salvo com sucesso!")
+                st.session_state['ultimo_relatorio'] = reg
+            except Exception as e: st.error(f"Erro: {e}")
 
 if 'ultimo_relatorio' in st.session_state:
         st.download_button("📥 Baixar PDF do Relatório", data=gerar_pdf_completo(st.session_state['ultimo_relatorio']), file_name=f"Inspecao_{campus_sel}.pdf")
