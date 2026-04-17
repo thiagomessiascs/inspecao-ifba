@@ -10,7 +10,7 @@ import requests
 import os
 
 # 1. CONFIGURAÇÕES DA PÁGINA
-st.set_page_config(page_title="Sistema do THIAGO PRODIN - IFBA", layout="centered", page_icon="📋")
+st.set_page_config(page_title="Sistema PRODIN - IFBA", layout="centered", page_icon="📋")
 
 URL_PLANILHA = "https://docs.google.com/spreadsheets/d/1i2-Sd9853TrdgUGSo9QRX5sKD7kFmsbuqih9FlF-7F8/edit"
 NOME_ABA = "Sheet1" 
