@@ -21,109 +21,109 @@ NOME_ARQUIVO_LOGO = "logo_ifba.png"
 sugestoes_v2 = {
     'Alvenaria': {
         'Fissuras de retração térmica': {
-            'solucao': ['Tratamento com tela de poliéster e selante elastomérico'],
+            'solucao': 'Tratamento com tela de poliéster e selante elastomérico',
             'obs': 'Procedimento: Abrir a fissura em "V", limpar, aplicar fundo preparador, preencher com selante PU e cobrir com tela de poliéster antes do acabamento.'
         },
         'Umidade por capilaridade (rodapé)': {
-            'solucao': ['Impermeabilização polimérica de rodapé'],
+            'solucao': 'Impermeabilização polimérica de rodapé',
             'obs': 'Procedimento: Remover reboco até 50cm de altura, aplicar argamassa impermeabilizante estrutural (3 demãos) e refazer o reboco com aditivo hidrófugo.'
         },
         'Eflorescência (sais brancos)': {
-            'solucao': ['Limpeza ácida e hidrofugação'],
+            'solucao': 'Limpeza ácida e hidrofugação',
             'obs': 'Procedimento: Escovar a área seca, lavar com solução de ácido clorídrico diluído, enxaguar e, após secagem, aplicar hidrofugante.'
         },
         'Descolamento de revestimento cerâmico': {
-            'solucao': ['Substituição de peças com argamassa AC-III'],
+            'solucao': 'Substituição de peças com argamassa AC-III',
             'obs': 'Procedimento: Remover peças soltas, limpar o substrato, aplicar argamassa AC-III com técnica de dupla camada e rejuntar.'
         },
         'Fissura em junta de prumada (encontro viga/alvenaria)': {
-            'solucao': ['Instalação de tela metálica/eletrosoldada'],
+            'solucao': 'Instalação de tela metálica/eletrosoldada',
             'obs': 'Procedimento: Remover reboco na junta, fixar tela metálica galvanizada cruzando a união viga-alvenaria e aplicar novo chapisco e emboço.'
         }
     },
     'Estrutura': {
         'Corrosão de armaduras (ferro exposto)': {
-            'solucao': ['Escovamento, passivação e reparo com graute'],
+            'solucao': 'Escovamento, passivação e reparo com graute',
             'obs': 'Procedimento: Remover concreto degradado, limpar armadura com escova de aço, aplicar inibidor de corrosão e recompor com graute estrutural.'
         },
         'Segregação do concreto (bicheiras)': {
-            'solucao': ['Preenchimento com graute de alta fluidez'],
+            'solucao': 'Preenchimento com graute de alta fluidez',
             'obs': 'Procedimento: Remover partes soltas, lavar a cavidade, aplicar ponte de aderência e preencher com graute estrutural.'
         },
         'Fissura estrutural em viga (tração)': {
-            'solucao': ['Injeção de resina epóxi de baixa viscosidade'],
+            'solucao': 'Injeção de resina epóxi de baixa viscosidade',
             'obs': 'Procedimento: Colocação de bicos injetores, selagem superficial da fissura e injeção de epóxi sob pressão controlada para restabelecer a monoliticidade.'
         },
         'Desagregação do concreto por ataque químico': {
-            'solucao': ['Tratamento de superfície e pintura protetora'],
+            'solucao': 'Tratamento de superfície e pintura protetora',
             'obs': 'Procedimento: Remover camadas friáveis, estruturalmente comprometidas, neutralizar o substrato, recompor seção com argamassa de reparo e aplicar selador epóxi.'
         }
     },
     'Cobertura': {
         'Infiltração em rufos e contra-rufos': {
-            'solucao': ['Vedação com PU 40 e manta aluminizada'],
+            'solucao': 'Vedação com PU 40 e manta aluminizada',
             'obs': 'Procedimento: Limpar o substrato, remover selantes antigos, aplicar cordão de PU 40 nas juntas e reforçar com fita aluminizada.'
         },
         'Obstrução de calhas e condutores': {
-            'solucao': ['Limpeza mecânica e revisão de caimentos'],
+            'solucao': 'Limpeza mecânica e revisão de caimentos',
             'obs': 'Procedimento: Remover detritos e sedimentos, testar vazão com água e ajustar suportes se houver empoçamento.'
         },
         'Oxidação em estrutura metálica': {
-            'solucao': ['Tratamento anticorrosivo e pintura esmalte'],
+            'solucao': 'Tratamento anticorrosivo e pintura esmalte',
             'obs': 'Procedimento: Lixamento mecânico (ST3), aplicação de fundo convertedor de ferrugem e acabamento com tinta esmalte sintético.'
         },
         'Telhas cerâmicas/fibrocimento quebradas': {
-            'solucao': ['Substituição imediata de elementos de cobertura'],
+            'solucao': 'Substituição imediata de elementos de cobertura',
             'obs': 'Procedimento: Identificar peças avariadas, substituir por novas de mesma geometria e revisar a fixação/sobreposição lateral.'
         }
     },
     'Hidráulica': {
         'Vazamento em conexões de PVC': {
-            'solucao': ['Substituição de trecho e vedação plástica'],
+            'solucao': 'Substituição de trecho e vedação plástica',
             'obs': 'Procedimento: Cortar o trecho avariado, instalar luvas de correr ou conexões novas com abraçadeiras apropriadas.'
         },
         'Retorno de odor em ralos e sifões': {
-            'solucao': ['Substituição de desconector ou recomposição de fecho hídrico'],
+            'solucao': 'Substituição de desconector ou recomposição de fecho hídrico',
             'obs': 'Procedimento: Verificar integridade da caixa sifonada; se necessário, instalar sifão com copo ou aumentar profundidade do fecho hídrico.'
         },
         'Infiltração proveniente de barrilete': {
-            'solucao': ['Revisão de boias e flanges de reservatórios'],
+            'solucao': 'Revisão de boias e flanges de reservatórios',
             'obs': 'Procedimento: Substituir boias mecânicas danificadas, reapertar ou trocar flanges com gaxetas de vedação ressecadas.'
         },
         'Obstrução de ramal de esgoto primário': {
-            'solucao': ['Desobstrução mecânica e limpeza de caixas'],
+            'solucao': 'Desobstrução mecânica e limpeza de caixas',
             'obs': 'Procedimento: Utilizar sonda mecânica ou hidrojateamento, seguido de limpeza completa das caixas de inspeção a jusante.'
         }
     },
     'Elétrica': {
         'Superaquecimento de disjuntores': {
-            'solucao': ['Reaperto de conexões e redimensionamento'],
+            'solucao': 'Reaperto de conexões e redimensionamento',
             'obs': 'Procedimento: Verificar torque nos terminais; caso o aquecimento persista, medir corrente e substituir por disjuntor de curva adequada.'
         },
         'Fios expostos ou sem isolamento': {
-            'solucao': ['Acondicionamento em eletrodutos e isolamento'],
+            'solucao': 'Acondicionamento em eletrodutos e isolamento',
             'obs': 'Procedimento: Desligar o circuito, revisar emendas com fita isolante de alta fusão e organizar a fiação dentro de canaletas/eletrodutos.'
         },
         'Ausência de dispositivo DR (Segurança)': {
-            'solucao': ['Instalação de interruptor diferencial residual (IDR)'],
+            'solucao': 'Instalação de interruptor diferencial residual (IDR)',
             'obs': 'Procedimento: Adequar o quadro de distribuição para instalação do DR de 30mA para proteção contra choques conforme NBR 5410.'
         },
         'Quadro de distribuição sem identificação': {
-            'solucao': ['Mapeamento de circuitos e etiquetagem'],
+            'solucao': 'Mapeamento de circuitos e etiquetagem',
             'obs': 'Procedimento: Realizar teste de continuidade, identificar cada circuito e aplicar etiquetas adesivas legíveis no espelho do quadro.'
         }
     },
     'Impermeabilização': {
         'Infiltração em laje exposta': {
-            'solucao': ['Aplicação de manta asfáltica ou membrana PU'],
+            'solucao': 'Aplicação de manta asfáltica ou membrana PU',
             'obs': 'Procedimento: Regularizar piso com caimento de 1%, aplicar primer e fundir manta asfáltica com maçarico (sobreposição 10cm).'
         },
         'Falha em junta de dilatação': {
-            'solucao': ['Substituição de mastique e delimitador'],
+            'solucao': 'Substituição de mastique e delimitador',
             'obs': 'Procedimento: Remover selante antigo, inserir corpo de apoio (back-rod) e aplicar novo mastique de poliuretano.'
         },
         'Umidade em reservatório inferior/superior': {
-            'solucao': ['Impermeabilização com argamassa polimérica cristalizante'],
+            'solucao': 'Impermeabilização com argamassa polimérica cristalizante',
             'obs': 'Procedimento: Esvaziar reservatório, limpar paredes, tratar fissuras com fita telada e aplicar 3 demãos de argamassa polimérica.'
         }
     }
@@ -301,7 +301,7 @@ with st.sidebar:
     campus_sel = st.selectbox("Campus", dados_prodin[eng_sel]["campi"])
     nav = st.radio("Ir para:", ["Nova Inspeção", "Histórico", "Dashboard"])
     
-    # --- BOTÃO GERAR PDF CONSOLIDADO (SOLICITADO) ---
+    # --- BOTÃO GERAR PDF CONSOLIDADO (MANTIDO) ---
     st.markdown("---")
     if st.button("📄 Gerar PDF Consolidado", use_container_width=True):
         try:
@@ -333,41 +333,20 @@ if nav == "Nova Inspeção":
         data_ins = c3.date_input("Data", datetime.now())
         modalidade = c4.selectbox("Modalidade", ["Serviços contínuos", "Serviços eventuais", "Obras ou reformas"])
 
-        # --- MATRIZ GUT ---
-        st.markdown("---")
-        st.markdown("### Matriz de Prioridade (GUT)")
-        c_g, c_u, c_t = st.columns(3)
-        with c_g:
-            g = st.selectbox("Gravidade (G)", [1, 2, 3, 4, 5], help="1: Sem gravidade | 5: Extremamente grave")
-        with c_u:
-            u = st.selectbox("Urgência (U)", [1, 2, 3, 4, 5], help="1: Pode esperar | 5: Imediata")
-        with c_t:
-            t = st.selectbox("Tendência (T)", [1, 2, 3, 4, 5], help="1: Não muda | 5: Piora rápido")
-        
-        score_gut = g * u * t
-        
-        if score_gut < 20:
-            cor_gut = "success"
-        elif score_gut < 60:
-            cor_gut = "warning"
-        else:
-            cor_gut = "error"
-            
-        st.status(f"**Score GUT Calculado: {score_gut} pontos**", state=cor_gut)
-        st.markdown("---")
-
         lista_patologias = list(sugestoes_v2[disc_escolhida].keys()) if disc_escolhida in sugestoes_v2 else [""]
         patologia_sel = st.selectbox("Patologia Identificada", lista_patologias)
         
-        dados_patologia = sugestoes_v2.get(disc_escolhida, {}).get(patologia_sel, {"solucao": [], "obs": ""})
-        
-        # --- SOLUÇÃO TÉCNICA COMO LISTA ---
-        opcoes_sol = dados_patologia.get("solucao", [])
-        if isinstance(opcoes_sol, list) and len(opcoes_sol) > 0:
-            sol_final = st.selectbox("Solução Técnica:", opcoes_sol)
-        else:
-            sol_final = st.text_input("Solução Técnica:", value=str(opcoes_sol))
-            
+        # --- NOVO: MATRIZ GUT ---
+        st.markdown("#### Priorização (Matriz GUT)")
+        cg, cu, ct = st.columns(3)
+        g_val = cg.slider("Gravidade (1-5)", 1, 5, 3)
+        u_val = cu.slider("Urgência (1-5)", 1, 5, 3)
+        t_val = ct.slider("Tendência (1-5)", 1, 5, 3)
+        gut_total = g_val * u_val * t_val
+        st.write(f"Prioridade GUT: **{gut_total}**")
+
+        dados_patologia = sugestoes_v2.get(disc_escolhida, {}).get(patologia_sel, {"solucao": "", "obs": ""})
+        sol_automatica = st.text_input("Solução Técnica (Automática):", value=dados_patologia['solucao'])
         obs_final = st.text_area("Observações (Procedimento de Execução):", value=dados_patologia['obs'])
         
         foto = st.file_uploader("📸 Foto da Patologia", type=['jpg', 'png', 'jpeg'])
@@ -385,7 +364,9 @@ if nav == "Nova Inspeção":
                 "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, 
                 "Edificacao": edificacao, "Disciplina": disc_escolhida, "Ambiente": ambiente_sel, 
                 "Sala": "N/A", "Modalidade": modalidade, "Descricao": patologia_sel, 
-                "Solucoes": f"GUT({score_gut}) | {sol_final} | {obs_final}", "Engenheiro": eng_sel, "Foto_Dados": f_b64
+                "Solucoes": f"{sol_automatica} | {obs_final}", 
+                "GUT": gut_total, # Incluindo GUT no registro
+                "Engenheiro": eng_sel, "Foto_Dados": f_b64
             }
             
             try:
@@ -428,13 +409,7 @@ elif nav == "Histórico":
                 edit_edificacao = c_e1.selectbox("Edificação", lista_edif, index=lista_edif.index(edif_at) if edif_at in lista_edif else 0)
                 edit_ambiente = c_e2.text_input("Ambiente", value=df_filtrado.loc[idx_para_editar, 'Ambiente'])
 
-                # Ajuste no Histórico para Solução Técnica
-                opcoes_edit = dados_sugestao.get('solucao', [])
-                if isinstance(opcoes_edit, list) and len(opcoes_edit) > 0:
-                    edit_sol_tec = st.selectbox("Solução Técnica:", opcoes_edit)
-                else:
-                    edit_sol_tec = st.text_input("Solução Técnica:", value=str(opcoes_edit))
-
+                edit_sol_tec = st.text_input("Solução Técnica (Automática):", value=dados_sugestao['solucao'])
                 edit_obs = st.text_area("Observações (Procedimento):", value=dados_sugestao['obs'])
                 
                 if st.button("💾 Salvar Alterações"):
@@ -476,6 +451,11 @@ elif nav == "Dashboard":
                 st.write("**Patologias por Edificação**")
                 contagem_edif = df_dash['Edificacao'].value_counts()
                 st.bar_chart(contagem_edif)
+
+            # Dashboard GUT
+            if 'GUT' in df_dash.columns:
+                st.write("**Análise de Prioridade (GUT)**")
+                st.line_chart(df_dash['GUT'])
 
             st.write("**Resumo por Patologia**")
             resumo_pat = df_dash.groupby(['Disciplina', 'Descricao']).size().reset_index(name='Quantidade')
