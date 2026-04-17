@@ -333,14 +333,31 @@ if nav == "Nova Inspeção":
         data_ins = c3.date_input("Data", datetime.now())
         modalidade = c4.selectbox("Modalidade", ["Serviços contínuos", "Serviços eventuais", "Obras ou reformas"])
 
-        lista_patologias = list(sugestoes_v2[disc_escolhida].keys()) if disc_escolhida in sugestoes_v2 else [""]
+        lista_patologias = list(sugestoes_v2[disc_escolhida].keys()) if disc_escolhida in sugestoes_v2 else []
+
+# Criamos as colunas: 3 partes para a Patologia e 1 para cada letra da GUT
+c_pat, c_g, c_u, c_t = st.columns([3, 1, 1, 1])
+
+        with c_pat:
         patologia_sel = st.selectbox("Patologia Identificada", lista_patologias)
+
+        with c_g:
+            g = st.selectbox("G", [1, 2, 3, 4, 5], help="Gravidade")
+
+        with c_u:
+            u = st.selectbox("U", [1, 2, 3, 4, 5], help="Urgência")
+
+        with c_t:
+            t = st.selectbox("T", [1, 2, 3, 4, 5], help="Tendência")
+
+# Cálculo do Score (fica guardado na memória para salvar depois)
+score_gut = g * u * t
         
-        dados_patologia = sugestoes_v2.get(disc_escolhida, {}).get(patologia_sel, {"solucao": "", "obs": ""})
-        sol_automatica = st.text_input("Solução Técnica (Automática):", value=dados_patologia['solucao'])
-        obs_final = st.text_area("Observações (Procedimento de Execução):", value=dados_patologia['obs'])
+            dados_patologia = sugestoes_v2.get(disc_escolhida, {}).get(patologia_sel, {"solucao": "", "obs": ""})
+            sol_automatica = st.text_input("Solução Técnica (Automática):", value=dados_patologia['solucao'])
+            obs_final = st.text_area("Observações (Procedimento de Execução):", value=dados_patologia['obs'])
         
-        foto = st.file_uploader("📸 Foto da Patologia", type=['jpg', 'png', 'jpeg'])
+            foto = st.file_uploader("📸 Foto da Patologia", type=['jpg', 'png', 'jpeg'])
 
         if st.form_submit_button("✅ Salvar Inspeção"):
             f_b64 = ""
