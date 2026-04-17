@@ -336,9 +336,12 @@ if nav == "Nova Inspeção":
         lista_patologias = list(sugestoes_v2[disc_escolhida].keys()) if disc_escolhida in sugestoes_v2 else [""]
         patologia_sel = st.selectbox("Patologia Identificada", lista_patologias)
         
+        # BUSCA AS SUGESTÕES DO DICIONÁRIO
         dados_patologia = sugestoes_v2.get(disc_escolhida, {}).get(patologia_sel, {"solucao": "", "obs": ""})
-        sol_automatica = st.text_input("Solução Técnica (Automática):", value=dados_patologia['solucao'])
-        obs_final = st.text_area("Observações (Procedimento de Execução):", value=dados_patologia['obs'])
+        
+        # ESTES CAMPOS MOSTRAM O QUE VEM DO DICIONÁRIO MAS PERMITEM EDIÇÃO MANUAL
+        sol_manual = st.text_input("Solução Técnica:", value=dados_patologia['solucao'])
+        obs_manual = st.text_area("Observações (Procedimento de Execução):", value=dados_patologia['obs'])
         
         foto = st.file_uploader("📸 Foto da Patologia", type=['jpg', 'png', 'jpeg'])
 
@@ -351,11 +354,12 @@ if nav == "Nova Inspeção":
                 img.save(buf, format="JPEG", quality=75)
                 f_b64 = base64.b64encode(buf.getvalue()).decode()
             
+            # ALTERAÇÃO CRITICA: SALVA O QUE ESTÁ NOS CAMPOS (PODE SER A SUGESTÃO OU O QUE O ENG ESCREVEU)
             reg = {
                 "Data": data_ins.strftime("%d/%m/%Y"), "Campus": campus_sel, 
                 "Edificacao": edificacao, "Disciplina": disc_escolhida, "Ambiente": ambiente_sel, 
                 "Sala": "N/A", "Modalidade": modalidade, "Descricao": patologia_sel, 
-                "Solucoes": f"{sol_automatica} | {obs_final}", "Engenheiro": eng_sel, "Foto_Dados": f_b64
+                "Solucoes": f"{sol_manual} | {obs_manual}", "Engenheiro": eng_sel, "Foto_Dados": f_b64
             }
             
             try:
@@ -398,7 +402,7 @@ elif nav == "Histórico":
                 edit_edificacao = c_e1.selectbox("Edificação", lista_edif, index=lista_edif.index(edif_at) if edif_at in lista_edif else 0)
                 edit_ambiente = c_e2.text_input("Ambiente", value=df_filtrado.loc[idx_para_editar, 'Ambiente'])
 
-                edit_sol_tec = st.text_input("Solução Técnica (Automática):", value=dados_sugestao['solucao'])
+                edit_sol_tec = st.text_input("Solução Técnica:", value=dados_sugestao['solucao'])
                 edit_obs = st.text_area("Observações (Procedimento):", value=dados_sugestao['obs'])
                 
                 if st.button("💾 Salvar Alterações"):
